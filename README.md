@@ -105,13 +105,13 @@ O processo envolve:
 |---|---|
 | **Marcos Vinicius Erculiani Chaves** | 🧩 Scrum Master (SM) |
 | **Rafael Lopes Bonfim** | 🎯 Product Owner (PO) |
-| **Luan Carlos Medeiros Ronzoni** | 👤 Stakeholder (ST) |
-| **Miguel Fênix da Silva Brito** | 👤 Stakeholder (ST) |
-| **Marcus Vinicius Carniello Leão** | 👤 Stakeholder (ST) |
-| **Thiago Henrique dos Santos** | 👤 Stakeholder (ST) |
-| **Raony Pietro de Moraes Janelato** | 👤 Stakeholder (ST) |
-| **Gabriel Luiz Freire Gomes** | 👤 Stakeholder (ST) |
-| **João Gabriel da Costa Bordinhon** | 👤 Stakeholder (ST) |
+| **Luan Carlos Medeiros Ronzoni** | 👤 ScrumTeam (ST) |
+| **Miguel Fênix da Silva Brito** | 👤 ScrumTeam (ST) |
+| **Marcus Vinicius Carniello Leão** | 👤 ScrumTeam (ST) |
+| **Thiago Henrique dos Santos** | 👤 ScrumTeam (ST) |
+| **Raony Pietro de Moraes Janelato** | 👤 ScrumTeam (ST) |
+| **Gabriel Luiz Freire Gomes** | 👤 ScrumTeam (ST) |
+| **João Gabriel da Costa Bordinhon** | 👤 ScrumTeam (ST) |
 
 ---
 
