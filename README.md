@@ -106,7 +106,7 @@ O processo envolve:
 | **Marcos Vinicius Erculiani Chaves** | 🧩 Scrum Master (SM) |
 | **Rafael Lopes Bonfim** | 🎯 Product Owner (PO) |
 | **Luan Carlos Medeiros Ronzoni** | 👤 ScrumTeam (ST) |
-| **Miguel Fênix da Silva Brito** | 👤 ScrumTeam (ST) |
+| **Miguel Fenix da Silva Brito** | 👤 ScrumTeam (ST) |
 | **Marcus Vinicius Carniello Leão** | 👤 ScrumTeam (ST) |
 | **Thiago Henrique dos Santos** | 👤 ScrumTeam (ST) |
 | **Raony Pietro de Moraes Janelato** | 👤 ScrumTeam (ST) |
