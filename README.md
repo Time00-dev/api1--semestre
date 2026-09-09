@@ -101,8 +101,8 @@ O processo envolve:
 
 ## 👥 Equipe — Time00.dev
 
-| Integrante | Função |
-|---|---|
+| Integrante | Função | LinkedIn | Git Hub |
+|---|---|---|---|
 | **Marcos Vinicius Erculiani Chaves** | 🧩 Scrum Master (SM) |
 | **Rafael Lopes Bonfim** | 🎯 Product Owner (PO) |
 | **Luan Carlos Medeiros Ronzoni** | 👤 ScrumTeam (ST) |
