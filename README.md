@@ -105,6 +105,7 @@ O processo envolve:
 |---|---|---|---|
 | **Marcos Vinicius Erculiani Chaves** | 🧩 Scrum Master (SM) |
 | **Rafael Lopes Bonfim** | 🎯 Product Owner (PO) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/rafael-lopes-bonfim-470817308/) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Rafael-Bonfim) |
+| **Gabriel Luiz Freire Gomes** | 👤 ScrumTeam (ST) |[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/gabriel-luiz-freire-gomes/) 
 | **Luan Carlos Medeiros Ronzoni** | 👤 ScrumTeam (ST) |
 | **Miguel Fenix da Silva Brito** | 👤 ScrumTeam (ST) |
 | **Marcus Vinicius Carniello Leão** | 👤 ScrumTeam (ST) |  [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/marcus-carniello-a8b238369) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MarcusCarniello) |
