@@ -110,7 +110,7 @@ O processo envolve:
 | **Miguel Fenix da Silva Brito** | 👤 ScrumTeam (ST) |
 | **Marcus Vinicius Carniello Leão** | 👤 ScrumTeam (ST) |  [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/marcus-carniello-a8b238369) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MarcusCarniello) |
 | **Thiago Henrique dos Santos** | 👤 ScrumTeam (ST) |
-| **Raony Pietro de Moraes Janelato** | 👤 ScrumTeam (ST) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/raony-janelato-729b18428) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Raony0) |
+| **Raony Pietro de Moraes Janelato** | 👤 ScrumTeam (ST) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/raony-janelato-729b18428/) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Raony0) |
 | **Gabriel Luiz Freire Gomes** | 👤 ScrumTeam (ST) |
 | **João Gabriel da Costa Bordinhon** | 👤 ScrumTeam (ST) |
 
