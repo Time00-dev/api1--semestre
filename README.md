@@ -103,7 +103,7 @@ O processo envolve:
 
 | Integrante | Função | LinkedIn | Git Hub |
 |---|---|---|---|
-| **Marcos Vinicius Erculiani Chaves** | 🧩 Scrum Master (SM) |
+| **Marcos Vinicius Erculiani Chaves** | 🧩 Scrum Master (SM) |[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/marcos-erculiani-50b95a320/) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/marcoserculianipw) |
 | **Rafael Lopes Bonfim** | 🎯 Product Owner (PO) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/rafael-lopes-bonfim-470817308/) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Rafael-Bonfim) |
 | **Gabriel Luiz Freire Gomes** | 👤 ScrumTeam (ST) |[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/gabriel-luiz-freire-gomes/) |[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/GabrielLuizFreireGomes)
 | **Luan Carlos Medeiros Ronzoni** | 👤 ScrumTeam (ST) |
