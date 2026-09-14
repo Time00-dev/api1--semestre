@@ -112,7 +112,7 @@ O processo envolve:
 | **Thiago Henrique dos Santos** | 👤 ScrumTeam (ST) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/thiago-henrique-54ba51436/) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Thiagoml) |
 | **Raony Pietro de Moraes Janelato** | 👤 ScrumTeam (ST) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/raony-janelato-729b18428) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Raony0) |
 | **Gabriel Luiz Freire Gomes** | 👤 ScrumTeam (ST) |
-| **João Gabriel da Costa Bordinhon** | 👤 ScrumTeam (ST) |
+| **João Gabriel da Costa Bordinhon** | 👤 ScrumTeam (ST) | [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/joão-gabriel-da-costa-bordinhon-a41722436) | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/joao-bordinhon1405) |
 
 ---
 
