@@ -1,0 +1,48 @@
+### Dados e Outputs Específicos do Projeto ###
+# Ignora a pasta onde os parquets e zips são salvos pelo código
+/dados/
+/content/dados/
+
+# Ignora extensões de arquivos de dados manipulados no notebook
+*.parquet
+*.zip
+*.csv
+*.json
+
+### Jupyter Notebook / Google Colab ###
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+### Python ###
+# Arquivos compilados
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribuição / Empacotamento
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+### Ambientes Virtuais e Configurações Locais ###
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
