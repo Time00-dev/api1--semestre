@@ -1,0 +1,25 @@
+name: Branch Name Check
+
+on:
+  pull_request:
+    branches: [main, stg, develop]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch name
+        run: |
+          branch="${{ github.head_ref }}"
+          pattern="^(feat|fix|hotfix|refactor|chore|docs|test|style|perf|ci|build)/[A-Z][A-Z0-9]*-[0-9]+_[a-z0-9][a-z0-9-]*$"
+
+          if ! echo "$branch" | grep -qE "$pattern"; then
+            echo "Branch '$branch' nao segue o padrao obrigatorio:"
+            echo "  <tipo>/<JIRA-TICKET>_titulo-do-ticket"
+            echo ""
+            echo "Tipos validos: feat, fix, hotfix, refactor, chore, docs, test, style, perf, ci, build"
+            echo "Exemplo: feat/FC404-42_criar-tela-de-login"
+            exit 1
+          fi
+
+          echo "Branch '$branch' valida."
