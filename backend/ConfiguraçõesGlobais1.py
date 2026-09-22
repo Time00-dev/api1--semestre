@@ -13,7 +13,8 @@ SESSION.headers.update({"bypass-tunnel-reminder": "true"})
 CHUNK_SIZE = 10000
 MAX_GET_RETRIES = 5
 
-USECOLS_SCR = ["data_base", "uf", "porte", "cliente",
+#adicionado coluna modalidade
+USECOLS_SCR = ["data_base", "uf", "porte", "cliente", "modalidade", 
     "carteira_inadimplencia", "carteira_vencida", "carteira_ativa", "vencido_acima_de_90_dias"]
 
 ano_anterior = datetime.now().year - 1
