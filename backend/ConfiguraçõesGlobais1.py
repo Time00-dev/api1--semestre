@@ -14,7 +14,7 @@ CHUNK_SIZE = 10000
 MAX_GET_RETRIES = 5
 
 USECOLS_SCR = ["data_base", "uf", "porte", "cliente",
-    "carteira_inadimplencia", "carteira_vencida", "carteira_ativa", "vencido_acima_de_90_dias"]
+    "carteira_inadimplencia", "carteira_vencida", "carteira_ativa", "vencido_15_a_60_dias", "vencido_61_a_90_dias", "vencido_acima_de_90_dias"]
 
 ano_anterior = datetime.now().year - 1
 URLS_SCR = [f"https://www.bcb.gov.br/pda/desig/scrdata_{ano}.zip" for ano in range(2021, ano_anterior+1)]
