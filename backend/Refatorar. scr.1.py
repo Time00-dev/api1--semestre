@@ -1,5 +1,40 @@
-import numpy as np
-import pandas as pd
+def validar_consistencia_saldos(df):
+    """Função para checar se a soma dos saldos por modalidade é igual à carteira ativa total."""
+    # 1. Filtra registros de carteira ativa
+    df_ativa = df[df["metrica"] == "carteira_ativa"]
+
+    # 2. Agrupa por modalidade e calcula a soma total
+    soma_modalidades = (
+        df_ativa.groupby(["ano_mes", "uf", "modalidade"])["valor"]
+        .sum()
+        .groupby(["ano_mes", "uf"])
+        .sum()
+        .reset_index(name="soma_modalidades")
+    )
+
+    # 3. Obtém o total da carteira ativa informado para o período/UF
+    total_carteira = (
+        df_ativa.groupby(["ano_mes", "uf"])["valor"]
+        .sum()
+        .reset_index(name="total_carteira_ativa")
+    )
+
+    # 4. Cruza e valida a diferença
+    checagem = pd.merge(soma_modalidades, total_carteira, on=["ano_mes", "uf"])
+    checagem["diferenca"] = (
+        checagem["soma_modalidades"] - checagem["total_carteira_ativa"]
+    ).round(2)
+
+    inconsistencias = checagem[checagem["diferenca"] != 0]
+
+    if not inconsistencias.empty:
+        print(
+            f"[VALIÇÃO] Encontradas {len(inconsistencias)} inconsistências entre modalidades e carteira ativa!"
+        )
+    else:
+        print(
+            "[VALIÇÃO] Saldos entre modalidades e carteira ativa estão 100% consistentes!"
+        )
 
 
 def padronizar_df_scr(df_scr):
@@ -7,91 +42,44 @@ def padronizar_df_scr(df_scr):
 
     df_scr["tipo"] = df_scr["cliente"].map({"PF": "pf"}).fillna("pj")
 
-    # 1. PRESERVAÇÃO DA MODALIDADE
-    # Garante que a coluna modalidade existe antes do melt
-    if "modalidade" not in df_scr.columns:
-        df_scr["modalidade"] = "nao_informado"
-
-    # Inclusão de 'modalidade' nos id_vars para não ser descartada no unpivot
+    # Inclui 'modalidade' id_vars para preservar o detalhamento das modalidades
     df_scr = df_scr.melt(
-        id_vars=[
-            "ano_mes",
-            "regiao",
-            "uf",
-            "tipo",
-            "classe",
-            "modalidade",
-        ],
+        id_vars=["ano_mes", "regiao", "uf", "tipo", "classe", "modalidade"],
         value_vars=[
             "carteira_inadimplencia",
             "carteira_vencida",
             "carteira_ativa",
             "vencido_acima_de_90_dias",
         ],
-        var_name="metrica_raw",
+        var_name="metrica",
         value_name="valor",
-    )
-
-    # 2. CATEGORIZAÇÃO CRÉDITO CRÍTICO VS SAUDÁVEL
-    # Classifica a métrica com base no risco de crédito
-    condicoes_critico = df_scr["metrica_raw"].isin([
-        "carteira_inadimplencia",
-        "carteira_vencida",
-        "vencido_acima_de_90_dias",
-    ])
-
-    df_scr["categoria_credito"] = np.where(
-        condicoes_critico, "critico", "saudavel"
-    )
-
-    # Padroniza os nomes das métricas explicitando a criticidade
-    condicoes_metrica = [
-        df_scr["metrica_raw"] == "carteira_inadimplencia",
-        df_scr["metrica_raw"] == "carteira_vencida",
-        df_scr["metrica_raw"] == "vencido_acima_de_90_dias",
-        df_scr["metrica_raw"] == "carteira_ativa",
-    ]
-    escolhas_metrica = [
-        "carteira_inadimplencia_critico",
-        "carteira_vencida_critico",
-        "vencido_acima_90_critico",
-        "carteira_ativa_saudavel",
-    ]
-    df_scr["metrica"] = np.select(
-        condicoes_metrica, escolhas_metrica, default=df_scr["metrica_raw"]
     )
 
     df_scr["origem"] = "scr"
 
-    # Agrupamento mantendo as novas colunas
-    group_cols = [
-        "ano_mes",
-        "regiao",
-        "uf",
-        "tipo",
-        "classe",
-        "modalidade",
-        "categoria_credito",
-        "metrica",
-        "origem",
-    ]
+    validar_consistencia_saldos(df_scr)
 
-    df_scr = (
-        df_scr.groupby(group_cols, observed=True)["valor"].sum().reset_index()
-    )
-
-    for col in [
-        "tipo",
-        "classe",
-        "origem",
-        "metrica",
-        "uf",
-        "regiao",
-        "modalidade",
-        "categoria_credito",
-    ]:
+    for col in ["tipo", "classe", "origem", "metrica", "uf", "modalidade"]:
         if col in df_scr.columns:
             df_scr[col] = df_scr[col].astype("category")
+
+    df_scr = (
+        df_scr.groupby(
+            [
+                "ano_mes",
+                "regiao",
+                "uf",
+                "tipo",
+                "classe",
+                "modalidade",
+                "metrica",
+                "origem",
+            ],
+            observed=True,
+        )["valor"]
+        .sum()
+        .reset_index()
+    )
 
     return df_scr[[
         "ano_mes",
@@ -99,8 +87,6 @@ def padronizar_df_scr(df_scr):
         "uf",
         "tipo",
         "classe",
-        "modalidade",
-        "categoria_credito",
         "metrica",
         "origem",
         "valor",
