@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Negado pelo Banco</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Projeto API - 1º Semestre</p>
+          <h1>Negado pelo Banco</h1>
+        </div>
+        <span class="badge">Demo Frontend</span>
+      </header>
+
+      <section class="cards">
+        <div class="card">
+          <span class="label">Oportunidade</span>
+          <strong id="score">72%</strong>
+        </div>
+        <div class="card">
+          <span class="label">Região destaque</span>
+          <strong>Sudeste</strong>
+        </div>
+        <div class="card">
+          <span class="label">Risco médio</span>
+          <strong>31%</strong>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <p class="panel-title">Indicadores de crédito</p>
+            <h2>Score de oportunidade por região</h2>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="oportunidadeChart"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
