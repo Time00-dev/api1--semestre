@@ -1,17 +1,25 @@
 // Protótipo GJ00-43: software de análise navegável sobre mock_sub_regioes.json (formato de saída do notebook).
-const EIXO_I = { inadimplenciaReal: "Inadimplência", fragilidadeRenda: "Fragilidade de renda", agingDivida: "Dívida antiga", vulnerabilidadeSocial: "Vulnerab. social" };
+// Cálculo do fim da Sprint 2 (backend/api_refatorada.ipynb + sub-região): nota 0 = "sem dado".
+const EIXO_I = { inadimplenciaReal: "Inadimplência", fragilidadeRenda: "Fragilidade (risco D-H)", agingDivida: "Cresc. da dívida vencida", vulnerabilidadeSocial: "Vulnerab. social" };
 const EIXO_II = { maturidadePix: "Maturidade Pix", crescimentoPopulacional: "Crescimento pop.", totalHabitantes: "Habitantes", bonusDemografico: "Bônus demográfico" };
 const INDICADORES = { risco: "Risco (média do Eixo I)", oport: "Oportunidade (média do Eixo II)", ...EIXO_I, ...EIXO_II };
+const EXPLICA = {
+  risco: "Média dos indicadores do Eixo I com dado, calculada no protótipo (o notebook entrega os 4 indicadores separados).",
+  oport: "Média dos indicadores do Eixo II com dado, calculada no protótipo (o notebook entrega os 4 indicadores separados).",
+  fragilidadeRenda: "Parte da carteira com risco D-H. A API do SCR não envia risco D-H desde jan/2025, então está sem dado no período.",
+  agingDivida: "Crescimento da carteira vencida (acima de 15 dias) em relação ao mesmo mês do ano anterior.",
+};
 const MAIOR_E_PIOR = new Set(["risco", ...Object.keys(EIXO_I)]);
 const REGIOES = ["Nordeste", "Norte", "Centro-Oeste", "Sudeste", "Sul"];
 const CORES = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181"]; // paleta dataviz (escuro), validada para 5 séries
 const CINZA = "#5b616b", BRANCO = "#f1f3f5", TXT = "#b8bfc9", GRID = "#2a2f36", ACENTO = "#3fc7f2";
 const MAX_COMPARAR = 5;
 
-const fmt = (n) => (n == null || Number.isNaN(n) ? "—" : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const fmt = (n) => (n == null || Number.isNaN(n) ? "sem dado" : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const sinal = (n) => `${n >= 0 ? "+" : "−"}${fmt(Math.abs(n))}`;
 const mesTxt = (m) => new Date(+m.slice(0, 4), +m.slice(4) - 1).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
-const media = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
+const mesCurto = (m) => `${new Date(+m.slice(0, 4), +m.slice(4) - 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}/${m.slice(2, 4)}`;
+const media = (xs) => { const v = xs.filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN; }; // ignora "sem dado"
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -31,6 +39,7 @@ fetch("dados/mock_sub_regioes.json").then((r) => r.json()).then((json) => {
     const chave = `${r.uf}-${r.sub_regiao}`, id = `${r.ano_mes}|${chave}`;
     reg.set(id, { ...(reg.get(id) || {}), ...r, chave, nome: r.nome_sub_regiao || `${r.uf} · CEP ${r.sub_regiao}` });
   }
+  for (const r of reg.values()) for (const k of [...Object.keys(EIXO_I), ...Object.keys(EIXO_II)]) if (r[k] === 0) r[k] = null; // 0 = sem dado (fillna(0) do notebook)
   estado.dados = [...reg.values()].map((r) => ({ ...r, risco: media(Object.keys(EIXO_I).map((k) => r[k])), oport: media(Object.keys(EIXO_II).map((k) => r[k])) }));
   for (const r of estado.dados) {
     (estado.porMes.get(r.ano_mes) || estado.porMes.set(r.ano_mes, []).get(r.ano_mes)).push(r);
@@ -59,7 +68,7 @@ function top5Risco(regiao) {
   return [...pior.values()].sort((a, b) => b.risco - a.risco).slice(0, 5);
 }
 const umPorUF = (rows) => rows.filter((r, i) => rows.findIndex((x) => x.uf === r.uf) === i);
-const PROPRIOS_DA_SUB = new Set(["inadimplenciaReal", "risco", "oport"]); // os demais indicadores são estaduais
+const PROPRIOS_DA_SUB = new Set(["inadimplenciaReal", "agingDivida", "fragilidadeRenda", "risco", "oport"]); // os demais indicadores são estaduais
 const linkSub = (r) => `<a href="#/sub/${r.chave}">${esc(r.nome)}</a>`;
 
 // ---------------- roteamento ----------------
@@ -78,8 +87,7 @@ function render() {
 }
 const titulo = (t) => ($("titulo").textContent = t);
 const tela = (html) => ($("tela").innerHTML = html);
-const painel = (id, h, largo = false) => `<article class="painel${largo ? " largo" : ""}"><h2>${h}</h2><p class="conclusao" id="c-${id}"></p><div class="canvas"><canvas id="g-${id}"></canvas></div></article>`;
-const conclui = (id, txt) => { const el = $("c-" + id); if (el) el.textContent = txt; };
+const painel = (id, h, largo = false) => `<article class="painel${largo ? " largo" : ""}"><h2>${h}</h2><div class="canvas"><canvas id="g-${id}"></canvas></div></article>`;
 const kpi = (rot, val, sub = "") => `<div class="kpi"><span>${rot}</span><strong>${val}</strong><small>${sub}</small></div>`;
 const novo = (id, cfg) => graficos.push(new Chart($("g-" + id), cfg));
 const eixoNota = (t) => ({ min: 1, max: 5, title: { display: true, text: t }, grid: { color: GRID } });
@@ -106,7 +114,7 @@ const extras = {
 };
 
 // dispersão risco x oportunidade; clicar num ponto abre o detalhe
-function mapa(id, destaques, conclusao) {
+function mapa(id, destaques) {
   const br = brasil(), dk = new Set(destaques.map((d) => d.chave));
   const ponto = (r) => ({ x: r.risco, y: r.oport, nome: r.nome, chave: r.chave });
   novo(id, {
@@ -123,28 +131,28 @@ function mapa(id, destaques, conclusao) {
         tooltip: { callbacks: { label: (c) => `${c.raw.nome}: risco ${fmt(c.raw.x)} · oportunidade ${fmt(c.raw.y)} (clique para abrir)` } } } },
     plugins: [extras],
   });
-  if (conclusao) conclui(id, conclusao);
 }
 
+const quebra = (t) => { const p = t.split(" "); return p.length > 1 ? [p.slice(0, Math.ceil(p.length / 2)).join(" "), p.slice(Math.ceil(p.length / 2)).join(" ")] : t; }; // rótulo em 2 linhas, sem inclinar
 function barrasComparativas(id, eixo, series) {
-  const ks = Object.keys(eixo);
+  const ks = Object.keys(eixo).filter((k) => series.some((s) => Number.isFinite(s.r[k]))); // indicador sem dado não ocupa espaço
   novo(id, {
     type: "bar",
-    data: { labels: Object.values(eixo), datasets: series.map((s) => s.ref
-      ? { label: s.nome, data: ks.map((k) => s.r[k]), backgroundColor: "rgba(241,243,245,0.16)", borderColor: BRANCO, borderWidth: 1, borderRadius: 4, borderSkipped: "bottom" }
-      : { label: s.nome, data: ks.map((k) => s.r[k]), backgroundColor: s.cor, borderRadius: 4, borderSkipped: "bottom" }) },
-    options: { maintainAspectRatio: false, scales: { y: eixoNota("Nota (1 a 5)"), x: { grid: { display: false } } },
+    data: { labels: ks.map((k) => quebra(eixo[k])), datasets: series.map((s) => s.ref
+      ? { label: s.nome, data: ks.map((k) => s.r[k]), backgroundColor: "rgba(241,243,245,0.16)", borderColor: BRANCO, borderWidth: 1, borderRadius: 4, borderSkipped: "bottom", maxBarThickness: 48 }
+      : { label: s.nome, data: ks.map((k) => s.r[k]), backgroundColor: s.cor, borderRadius: 4, borderSkipped: "bottom", maxBarThickness: 48 }) },
+    options: { maintainAspectRatio: false, scales: { y: eixoNota("Nota (1 a 5)"), x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: false } } },
       plugins: { legend: { labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.raw)}` } } } },
   });
 }
 
-function linhas(id, series, rotY, minmax = true) {
+function linhas(id, series, rotY, minmax = false) { // escala automática: variações pequenas não ficam achatadas em 1–5
   novo(id, {
     type: "line",
-    data: { labels: estado.meses.map(mesTxt), datasets: series.map((s) => ({ label: s.nome, data: s.dados, borderColor: s.cor, backgroundColor: s.cor, borderWidth: 2,
+    data: { labels: estado.meses.map(mesCurto), datasets: series.map((s) => ({ label: s.nome, data: s.dados, borderColor: s.cor, backgroundColor: s.cor, borderWidth: 2,
       borderDash: s.ref ? [5, 4] : [], pointRadius: 0, pointHoverRadius: 5, tension: 0.25 })) },
     options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
-      scales: { y: minmax ? eixoNota(rotY) : { title: { display: true, text: rotY }, grid: { color: GRID } }, x: { grid: { display: false } } },
+      scales: { y: minmax ? eixoNota(rotY) : { title: { display: true, text: rotY }, grid: { color: GRID } }, x: { grid: { display: false }, ticks: { maxRotation: 0 } } },
       plugins: { legend: { labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.raw)}` } } } },
   });
 }
@@ -167,22 +175,20 @@ function telaGeral() {
       ${kpi("Oportunidade média Brasil", fmt(br.oport), "Eixo II, de 1 a 5")}
       ${kpi("Inadimplência média", fmt(br.inadimplenciaReal), `${sinal(br.inadimplenciaReal - ini.inadimplenciaReal)} desde ${mesTxt(estado.meses[0])}`)}
     </div>
-    <div class="grade">
-      ${painel("mapa", "Onde estão o risco e a oportunidade?", true)}
-      <article class="painel"><h2>Maior risco (1 por estado)</h2>${lista(riscos, (r) => `risco ${fmt(r.risco)}`)}<p>${btnComparar(riscos)}</p></article>
-      <article class="painel"><h2>Vulneráveis que pagam bem</h2><p class="conclusao">Vulnerabilidade social alta (≥ 4) e inadimplência mais baixa: o público-alvo.</p>${lista(vulneraveisBons, (r) => `vulnerab. ${fmt(r.vulnerabilidadeSocial)} · inad. ${fmt(r.inadimplenciaReal)}`)}<p>${btnComparar(vulneraveisBons)}</p></article>
-      <article class="painel"><h2>Melhor equilíbrio risco × oportunidade</h2>${lista(oport, (r) => `oport. ${fmt(r.oport)} · risco ${fmt(r.risco)}`)}<p>${btnComparar(oport)}</p></article>
-      <article class="painel"><h2>Média por região</h2><p class="conclusao" id="c-reg"></p><div class="canvas"><canvas id="g-reg"></canvas></div></article>
+    <div class="grade dupla">
+      ${painel("mapa", "Risco × oportunidade de cada sub-região (clique num ponto para abrir)", true)}
+      <article class="painel"><h2>Maior risco: a pior sub-região de cada estado</h2>${lista(riscos, (r) => `risco ${fmt(r.risco)}`)}<p>${btnComparar(riscos)}</p></article>
+      <article class="painel"><h2>Vulneráveis que pagam bem (vulnerabilidade ≥ 4, menor inadimplência)</h2>${lista(vulneraveisBons, (r) => `vulnerab. ${fmt(r.vulnerabilidadeSocial)} · inad. ${fmt(r.inadimplenciaReal)}`)}<p>${btnComparar(vulneraveisBons)}</p></article>
+      <article class="painel"><h2>Melhor equilíbrio: mais oportunidade com menos risco</h2>${lista(oport, (r) => `oport. ${fmt(r.oport)} · risco ${fmt(r.risco)}`)}<p>${btnComparar(oport)}</p></article>
+      ${painel("reg", "Risco e oportunidade médios por região")}
     </div>`);
-  mapa("mapa", [], `${rs.filter((r) => r.risco < br.risco && r.oport > br.oport).length} das ${rs.length} sub-regiões estão no quadrante de menor risco e maior oportunidade. Clique num ponto para abrir a sub-região.`);
+  mapa("mapa", []);
   const porReg = REGIOES.map((g) => ({ g, rs: rs.filter((r) => r.regiao === g) }));
   novo("reg", { type: "bar",
     data: { labels: REGIOES, datasets: [
       { label: "Risco", data: porReg.map((x) => mediaDe(x.rs, "risco")), backgroundColor: CORES[1], borderRadius: 4 },
       { label: "Oportunidade", data: porReg.map((x) => mediaDe(x.rs, "oport")), backgroundColor: CORES[0], borderRadius: 4 }] },
     options: { maintainAspectRatio: false, scales: { y: eixoNota("Nota (1 a 5)"), x: { grid: { display: false } } }, plugins: { legend: { labels: { boxWidth: 12 } } } } });
-  const pior = porReg.slice().sort((a, b) => mediaDe(b.rs, "risco") - mediaDe(a.rs, "risco"))[0];
-  conclui("reg", `${pior.g} tem o maior risco médio (${fmt(mediaDe(pior.rs, "risco"))}).`);
 }
 
 function telaLista(r) {
@@ -225,7 +231,7 @@ function telaDetalhe(r) {
   const s = serie(x.chave), d12 = s.at(-1).inadimplenciaReal - s[0].inadimplenciaReal;
   const total = doMes().length;
   tela(`
-    <p class="aviso">Só a <b>inadimplência</b> é medida na própria sub-região. Os demais indicadores são do estado (${x.uf}) e se repetem nas ${daUF.length} sub-regiões dele.</p>
+    <p class="aviso"><b>Inadimplência</b> e <b>crescimento da dívida vencida</b> são medidos na própria sub-região. Vulnerabilidade social e o Eixo II são do estado (${x.uf}) e se repetem nas ${daUF.length} sub-regiões dele. A fragilidade está sem dado: a API do SCR não envia risco D-H desde jan/2025.</p>
     <div class="ferramentas">
       <button id="add">${estado.selecao.has(x.chave) ? "Na comparação ✓" : "Adicionar à comparação"}</button>
       <a class="btn" href="#/comparar?s=${[...new Set([...estado.selecao, x.chave])].slice(0, MAX_COMPARAR).join(",")}">Abrir comparação</a>
@@ -237,23 +243,19 @@ function telaDetalhe(r) {
       ${kpi("Inadimplência", fmt(x.inadimplenciaReal), `${sinal(d12)} em 12 meses · Brasil ${fmt(br.inadimplenciaReal)}`)}
       ${kpi("Vulnerabilidade social", fmt(x.vulnerabilidadeSocial), `estadual (${x.uf})`)}
     </div>
-    <div class="grade">
-      ${painel("e1", "Risco: onde está acima da média?")}
-      ${painel("e2", "Potencial de mercado")}
-      ${painel("t", "Inadimplência em 12 meses")}
-      ${painel("m", `Posição entre as ${total} sub-regiões`)}
+    <div class="grade dupla">
+      ${painel("e1", `Indicadores de risco: ${esc(x.nome)} × estado × Brasil`)}
+      ${painel("e2", `Indicadores de oportunidade: ${esc(x.nome)} × Brasil`)}
+      ${painel("t", "Inadimplência nos últimos 12 meses")}
+      ${painel("m", `Posição no risco × oportunidade entre as ${total} sub-regiões`)}
     </div>`);
   $("add").onclick = () => { if (estado.selecao.size < MAX_COMPARAR || estado.selecao.has(x.chave)) { estado.selecao.has(x.chave) ? estado.selecao.delete(x.chave) : estado.selecao.add(x.chave); render(); } };
   const C = { esta: CORES[0], uf: CORES[1] };
   barrasComparativas("e1", EIXO_I, [{ nome: x.nome, r: x, cor: C.esta }, { nome: `Média ${x.uf}`, r: uf, cor: C.uf }, { nome: "Média Brasil", r: br, ref: true }]);
   barrasComparativas("e2", EIXO_II, [{ nome: x.nome, r: x, cor: C.esta }, { nome: "Média Brasil", r: br, ref: true }]);
-  const acima = Object.keys(EIXO_I).filter((k) => x[k] > br[k]).map((k) => EIXO_I[k].toLowerCase());
-  conclui("e1", acima.length ? `Acima da média Brasil em: ${acima.join(", ")}.` : "Abaixo da média Brasil em todos os indicadores de risco.");
-  conclui("e2", `Oportunidade ${fmt(x.oport)} contra ${fmt(br.oport)} do Brasil (${x.oport >= br.oport ? "acima" : "abaixo"} da média).`);
   const serieUF = estado.meses.map((m) => mediaDe(doMes(m).filter((y) => y.uf === x.uf), "inadimplenciaReal"));
   linhas("t", [{ nome: x.nome, dados: s.map((y) => y.inadimplenciaReal), cor: C.esta }, { nome: `Média ${x.uf}`, dados: serieUF, cor: C.uf }, { nome: "Média Brasil", dados: serieBrasil("inadimplenciaReal"), cor: BRANCO, ref: true }], "Inadimplência (nota)");
-  conclui("t", d12 < 0 ? `Melhorou ${fmt(-d12)} pontos em 12 meses.` : d12 > 0 ? `Piorou ${fmt(d12)} pontos em 12 meses.` : "Estável em 12 meses.");
-  mapa("m", [{ ...x, cor: C.esta }], "Clique em outro ponto para navegar.");
+  mapa("m", [{ ...x, cor: C.esta }]);
 }
 
 function telaComparar(r) {
@@ -265,49 +267,42 @@ function telaComparar(r) {
   const vis = chaves.map((c) => reg(c)); vis.forEach((y) => cor(y.chave));
   const br = brasil();
   const ir = (cs) => (location.hash = `#/comparar?s=${cs.join(",")}`);
-  const opcoes = REGIOES.map((g) => `<optgroup label="${g}">${doMes().filter((y) => y.regiao === g && !chaves.includes(y.chave)).sort((a, b) => a.nome.localeCompare(b.nome)).map((y) => `<option value="${y.chave}">${esc(y.nome)}</option>`).join("")}</optgroup>`).join("");
+  const livres = doMes().filter((y) => !chaves.includes(y.chave)).sort((a, b) => a.nome.localeCompare(b.nome));
+  const opcoes = livres.map((y) => `<option value="${esc(y.nome)}">${y.regiao}</option>`).join(""); // datalist: filtra enquanto digita
   tela(`
     <div class="ferramentas">
       <div class="selecao">${vis.map((y) => `<span><i class="chip" style="background:${cor(y.chave)}"></i>${linkSub(y)}<button data-rm="${y.chave}" aria-label="Remover ${esc(y.nome)}">×</button></span>`).join("")}</div>
-      <label>Adicionar <select id="add" ${chaves.length >= MAX_COMPARAR ? "disabled" : ""}><option value="">${chaves.length >= MAX_COMPARAR ? "máximo de 5" : "escolha…"}</option>${opcoes}</select></label>
+      <label>Adicionar <input id="add" class="busca-add" list="op-add" autocomplete="off" placeholder="${chaves.length >= MAX_COMPARAR ? "máximo de 5" : "digite cidade ou UF"}" ${chaves.length >= MAX_COMPARAR ? "disabled" : ""}><datalist id="op-add">${opcoes}</datalist></label>
       <button id="padrao">Maior risco por estado</button>
       ${chaves.length ? `<button id="limpar">Limpar</button>` : ""}
     </div>
     ${chaves.length ? "" : `<p class="aviso">Nenhuma sub-região selecionada. Adicione pelo seletor acima, marque na lista de <a href="#/subregioes">Sub-regiões</a> ou use "Maior risco por estado".</p>`}
     <div class="kpis">${vis.map((y) => kpi(`<i class="chip" style="background:${cor(y.chave)}"></i>${esc(y.nome)} · ${y.regiao}`, fmt(y.risco), `risco ${sinal(y.risco - br.risco)} · oportunidade ${fmt(y.oport)} (${sinal(y.oport - br.oport)})`)).join("")}</div>
-    <div class="grade">
-      ${painel("mapa", "Qual é a melhor aposta?", true)}
-      ${painel("risco", "O que puxa o risco de cada uma?")}
-      ${painel("pot", "Onde há base para crescer?")}
-      ${painel("tend", "Quem está melhorando na inadimplência?")}
-      ${painel("paga", "Quem paga melhor do que a vulnerabilidade sugere?")}
+    <div class="grade dupla">
+      ${painel("mapa", "Risco × oportunidade das selecionadas: a melhor aposta fica no canto superior esquerdo", true)}
+      ${painel("risco", "Indicadores de risco de cada uma × média Brasil")}
+      ${painel("pot", "Indicadores de oportunidade de cada uma × média Brasil")}
+      ${painel("tend", "Inadimplência nos últimos 12 meses")}
+      ${painel("paga", "Paga melhor do que a vulnerabilidade sugere? (vulnerabilidade − inadimplência)")}
     </div>`);
   document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => ir(chaves.filter((c) => c !== b.dataset.rm))));
-  $("add").onchange = (e) => e.target.value && ir([...chaves, e.target.value]);
+  $("add").oninput = (e) => { const y = livres.find((z) => z.nome === e.target.value); if (y) ir([...chaves, y.chave]); };
   $("padrao").onclick = () => ir(top5Risco().map((y) => y.chave));
   if ($("limpar")) $("limpar").onclick = () => ir([]);
   if (!vis.length) return document.querySelector(".kpis").remove(), document.querySelector(".grade").remove();
 
-  const melhor = vis.slice().sort((a, b) => (b.oport - b.risco) - (a.oport - a.risco))[0];
-  mapa("mapa", vis, `Entre as ${vis.length}, ${melhor.nome} tem o melhor equilíbrio: risco ${fmt(melhor.risco)} e oportunidade ${fmt(melhor.oport)} (Brasil: ${fmt(br.risco)} e ${fmt(br.oport)}).`);
+  mapa("mapa", vis);
   const comRef = (eixo) => [...vis.map((y) => ({ nome: y.nome, r: y, cor: cor(y.chave) })), { nome: "Média Brasil", r: br, ref: true }];
   barrasComparativas("risco", EIXO_I, comRef(EIXO_I));
-  const cont = {}; vis.forEach((y) => { const k = Object.keys(EIXO_I).sort((a, b) => (y[b] - br[b]) - (y[a] - br[a]))[0]; cont[k] = (cont[k] || 0) + 1; });
-  const [kMax, n] = Object.entries(cont).sort((a, b) => b[1] - a[1])[0];
-  conclui("risco", `O fator que mais afasta ${n} das ${vis.length} da média Brasil é ${EIXO_I[kMax].toLowerCase()}.`);
   barrasComparativas("pot", EIXO_II, comRef(EIXO_II));
-  const pot = vis.slice().sort((a, b) => b.oport - a.oport)[0];
-  conclui("pot", `${pot.nome} tem o maior potencial entre as ${vis.length} (${fmt(pot.oport)} contra ${fmt(br.oport)} do Brasil).`);
   linhas("tend", [...vis.map((y) => ({ nome: y.nome, dados: serie(y.chave).map((z) => z.inadimplenciaReal), cor: cor(y.chave) })), { nome: "Média Brasil", dados: serieBrasil("inadimplenciaReal"), cor: BRANCO, ref: true }], "Inadimplência (nota)");
-  const delta = vis.map((y) => { const s = serie(y.chave); return { y, d: s.at(-1).inadimplenciaReal - s[0].inadimplenciaReal }; }).sort((a, b) => a.d - b.d);
-  conclui("tend", delta[0].d < 0 ? `${delta[0].y.nome} foi a que mais melhorou em 12 meses (${fmt(delta[0].d)}).` : "Nenhuma melhorou a inadimplência em 12 meses.");
   const v = vis.map((y) => ({ y, d: y.vulnerabilidadeSocial - y.inadimplenciaReal })).sort((a, b) => b.d - a.d);
+  const lim = Math.ceil(Math.max(1, ...v.map((z) => Math.abs(z.d))) * 1.15); // eixo simétrico em torno do zero: mostra para que lado cada uma vai
   novo("paga", { type: "bar",
-    data: { labels: v.map((z) => z.y.nome), datasets: [{ label: "Vulnerabilidade − inadimplência", data: v.map((z) => z.d), backgroundColor: v.map((z) => (z.d >= 0 ? CORES[0] : CORES[1])), borderRadius: 4, borderSkipped: false }] },
+    data: { labels: v.map((z) => z.y.nome), datasets: [{ label: "Vulnerabilidade − inadimplência", data: v.map((z) => z.d), backgroundColor: v.map((z) => (z.d >= 0 ? CORES[0] : CORES[1])), borderRadius: 4, borderSkipped: false, maxBarThickness: 36 }] },
     options: { indexAxis: "y", maintainAspectRatio: false,
-      scales: { x: { title: { display: true, text: "← atrasa mais que o esperado  ·  paga melhor que o esperado →" }, grid: { color: GRID } }, y: { grid: { display: false } } },
+      scales: { x: { min: -lim, max: lim, title: { display: true, text: "← atrasa mais que o esperado  ·  paga melhor que o esperado →" }, grid: { color: (c) => (c.tick.value === 0 ? BRANCO : GRID) } }, y: { grid: { display: false } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.raw >= 0 ? "Paga melhor" : "Atrasa mais"} que o esperado: ${fmt(c.raw)}` } } } } });
-  conclui("paga", v[0].d > 0 ? `${v[0].y.nome} é vulnerável, mas paga melhor do que isso sugere.` : "Todas atrasam tanto quanto ou mais do que a vulnerabilidade sugere.");
 }
 
 function telaIndicadores(r) {
@@ -316,7 +311,7 @@ function telaIndicadores(r) {
   const ordem = r.q.get("o") === "menores" ? "menores" : "maiores";
   const ruim = MAIOR_E_PIOR.has(k);
   const estadual = !PROPRIOS_DA_SUB.has(k);
-  const ordenadas = doMes().slice().sort((a, b) => (ordem === "maiores" ? b[k] - a[k] : a[k] - b[k]));
+  const ordenadas = doMes().filter((y) => Number.isFinite(y[k])).sort((a, b) => (ordem === "maiores" ? b[k] - a[k] : a[k] - b[k]));
   const rs = (estadual ? umPorUF(ordenadas).map((y) => ({ ...y, nome: `${y.uf} (estado)` })) : ordenadas).slice(0, 15);
   const ir = (mud) => (location.hash = `#/indicadores?${new URLSearchParams({ i: k, o: ordem, ...mud })}`);
   tela(`
@@ -325,13 +320,16 @@ function telaIndicadores(r) {
       <label>Mostrar <select id="ord"><option value="maiores" ${ordem === "maiores" ? "selected" : ""}>15 maiores</option><option value="menores" ${ordem === "menores" ? "selected" : ""}>15 menores</option></select></label>
       <span class="aviso" style="margin:0">${ruim ? "Neste indicador, maior é pior." : "Neste indicador, maior é melhor."}${estadual ? " Indicador estadual: o ranking mostra um registro por estado." : ""}</span>
     </div>
-    <div class="grade">
+    ${EXPLICA[k] ? `<p class="aviso">${EXPLICA[k]}</p>` : ""}
+    ${rs.length ? "" : `<p class="aviso"><b>Sem dado em ${mesTxt(estado.mes)}.</b> Escolha outro indicador.</p>`}
+    <div class="grade dupla" ${rs.length ? "" : 'style="display:none"'}>
       ${painel("rank", `${ordem === "maiores" ? "15 maiores" : "15 menores"}: ${INDICADORES[k]}`, true)}
-      ${painel("reg", "Média por região")}
-      ${painel("evo", "Evolução por região em 12 meses")}
+      ${painel("reg", `${INDICADORES[k]}: média por região`)}
+      ${painel("evo", `${INDICADORES[k]}: evolução por região em 12 meses`)}
     </div>`);
   $("ind").onchange = (e) => ir({ i: e.target.value });
   $("ord").onchange = (e) => ir({ o: e.target.value });
+  if (!rs.length) return;
   const br = brasil()[k];
   novo("rank", { type: "bar",
     data: { labels: rs.map((y) => y.nome), datasets: [{ label: INDICADORES[k], data: rs.map((y) => y[k]), backgroundColor: ACENTO, borderRadius: 4, borderSkipped: false, chaves: rs.map((y) => y.chave) }] },
@@ -340,15 +338,11 @@ function telaIndicadores(r) {
       onHover: (e, els) => (e.native.target.style.cursor = els.length ? "pointer" : "default"),
       scales: { x: eixoNota("Nota (1 a 5)"), y: { grid: { display: false } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${fmt(c.raw)} (Brasil ${fmt(br)}) · clique para abrir` } } } } });
-  conclui("rank", `${rs[0].nome} (${rs[0].regiao}) lidera com ${fmt(rs[0][k])}; a média Brasil é ${fmt(br)}. ${rs.filter((y) => y.regiao === rs[0].regiao).length} das 15 são do ${rs[0].regiao}.`);
   const porReg = REGIOES.map((g) => mediaDe(doMes().filter((y) => y.regiao === g), k));
   novo("reg", { type: "bar",
     data: { labels: REGIOES, datasets: [{ label: INDICADORES[k], data: porReg, backgroundColor: REGIOES.map((_, i) => CORES[i]), borderRadius: 4 }] },
     options: { maintainAspectRatio: false, scales: { y: eixoNota("Nota (1 a 5)"), x: { grid: { display: false } } },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.raw) } } } } });
-  const iPior = porReg.indexOf(ruim ? Math.max(...porReg) : Math.min(...porReg));
-  conclui("reg", `${REGIOES[iPior]} tem a situação ${ruim ? "mais arriscada" : "mais fraca"} neste indicador (${fmt(porReg[iPior])}).`);
   linhas("evo", [...REGIOES.map((g, i) => ({ nome: g, dados: estado.meses.map((m) => mediaDe(doMes(m).filter((y) => y.regiao === g), k)), cor: CORES[i] })),
-    { nome: "Brasil", dados: serieBrasil(k), cor: BRANCO, ref: true }], "Nota (1 a 5)");
-  conclui("evo", "Médias mensais das sub-regiões de cada região.");
+    { nome: "Brasil", dados: serieBrasil(k), cor: BRANCO, ref: true }], "Nota", false); // escala automática: as médias variam pouco e ficariam achatadas em 1–5
 }
