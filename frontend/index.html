@@ -1,51 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Negado pelo Banco</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-  <body>
-    <div class="container">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Projeto API - 1º Semestre</p>
-          <h1>Negado pelo Banco</h1>
-        </div>
-        <span class="badge">Demo Frontend</span>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Análise de crédito regional</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <nav class="menu" aria-label="Navegação">
+      <a href="#/" data-rota="geral">Visão geral</a>
+      <a href="#/subregioes" data-rota="subregioes">Sub-regiões</a>
+      <a href="#/comparar" data-rota="comparar">Comparar</a>
+      <a href="#/indicadores" data-rota="indicadores">Indicadores</a>
+    </nav>
+    <div class="principal">
+      <header class="barra">
+        <h1 id="titulo"></h1>
+        <label class="periodo">Período <select id="f-periodo"></select></label>
       </header>
-
-      <section class="cards">
-        <div class="card">
-          <span class="label">Oportunidade</span>
-          <strong id="score">72%</strong>
-        </div>
-        <div class="card">
-          <span class="label">Região destaque</span>
-          <strong>Sudeste</strong>
-        </div>
-        <div class="card">
-          <span class="label">Risco médio</span>
-          <strong>31%</strong>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <p class="panel-title">Indicadores de crédito</p>
-            <h2>Score de oportunidade por região</h2>
-          </div>
-        </div>
-
-        <div class="chart-wrap">
-          <canvas id="oportunidadeChart"></canvas>
-        </div>
-      </section>
+      <main id="tela" aria-live="polite"></main>
     </div>
-
-    <script src="script.js"></script>
-  </body>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
 </html>
