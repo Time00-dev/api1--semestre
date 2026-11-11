@@ -29,18 +29,26 @@ def construir_df_ibge():
 
   df_censo_demografico.columns.name = None
 
+  # [NOVO] Censo e idade só existem em anos de censo (2010, 2022), então não casam com os anos da escolarização.
+  # Fica com o dado mais recente de cada UF (.last()) e tira a coluna "ano", para valer para todos os anos
+  df_censo_demografico = (df_censo_demografico.sort_values("ano")
+      .groupby(["regiao", "uf"]).last().reset_index().drop(columns=["ano"]))
+  df_idade = (df_idade.sort_values("ano")
+      .groupby(["regiao", "uf"]).last().reset_index().drop(columns=["ano"]))
+
+  # [ALTERADO] Antes cruzava por ["ano", "regiao", "uf"]. Agora cruza só por ["regiao", "uf"]
   df_ibge = df_escolarizacao.merge(
       df_censo_demografico,
-      on=["ano", "regiao", "uf"],
+      on=["regiao", "uf"],
       how="left").merge(
       df_idade,
-      on=["ano", "regiao", "uf"],
+      on=["regiao", "uf"],
       how="left")
 
-  df_ibge = (
-      df_ibge.sort_values(["uf", "regiao", "ano"])
-      .ffill()
-      .reset_index()
-  )
+  # [ALTERADO] Ordena por UF, região e ano, agrupando por UF antes de aplicar fill/bfill;
+  # Isso garante que o preenchimento de nulos use apenas dados do mesmo estado, sem vazar para outras UFs
+  df_ibge = df_ibge.sort_values(["uf", "regiao", "ano"]).reset_index(drop=True)
+  colunas_preencher = ["taxa_escolarizacao", "populacao_residente", "taxa_crescimento", "variacao_populacao", "bonusDemografico"]
+  df_ibge[colunas_preencher] = df_ibge.groupby("uf")[colunas_preencher].transform(lambda x: x.ffill().bfill())
 
   salvar_parquet(df_ibge, "ibge")

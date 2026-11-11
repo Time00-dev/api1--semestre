@@ -11,6 +11,9 @@ def calcular_eixo_ii(df_scr_pix_base, df_ibge_base):
         how="left"
     ).drop(columns=["ano"])
 
+    # [NOVO] Ordena por UF e mês antes de preencher nulos para manter a cronologia correta dentro de cada estado
+    df_calculos = df_calculos.sort_values(["uf", "ano_mes"])
+
     def eliminar_duplicata(metrica):
         df_calculos[metrica] = (
             df_calculos.groupby("uf")[metrica]
@@ -34,17 +37,40 @@ def calcular_eixo_ii(df_scr_pix_base, df_ibge_base):
         .drop_duplicates()
         .merge(df_metricas, on=filtro, how="left")
     )
+    
+    # [ALTERADO] Salva as duas métricas brutas em colunas para normalizá-las separadamente
+    # 1. Maturidade Uso PIX = qt_pagador / qt_pes_pagador
+    df_calculos["maturidade_uso"] = np.where(
+        df_calculos["qt_pes_pagador"] > 0,
+        df_calculos["qt_pagador"] / df_calculos["qt_pes_pagador"],
+        0.0
+    )
 
-    # --- Cálculo dos indicadores ---
-    df_calculos["maturidadePix"] = ((df_calculos["qt_pagador"] / df_calculos["qt_pes_pagador"]) * 0.6) + ((df_calculos["vl_pagador"] / df_calculos["qt_pes_pagador"]) * 0.4)
+    # 2. Maturidade Financeira PIX = vl_pagador / qt_pagador
+    df_calculos["maturidade_financeira"] = np.where(
+        df_calculos["qt_pagador"] > 0,
+        df_calculos["vl_pagador"] / df_calculos["qt_pagador"],
+        0.0
+    )
+    
+    # [NOVO] Normaliza cada métrica na escala de 1 a 5 antes de aplicar os pesos, 
+    # evitando que o ticket médio em reais domine a frequência de uso
+    df_calculos = normalizacao(df_calculos, "maturidade_uso")
+    df_calculos = normalizacao(df_calculos, "maturidade_financeira")
+
+    # 3. Consolidado Maturidade PIX = (Uso * 0.6) + (Financeira * 0.4)
+    df_calculos["maturidadePix"] = (df_calculos["maturidade_uso"] * 0.6) + (df_calculos["maturidade_financeira"] * 0.4)
+
+    # Demais indicadores do Eixo II
     df_calculos["crescimentoPopulacional"] = df_calculos["taxa_crescimento"]
     df_calculos["totalHabitantes"] = df_calculos["populacao_residente"]
-    #Bônus demográfico calculado em calculo_idade()
 
     # --- Normalização ---
-    df_calculos = normalizacao(df_calculos, "maturidadePix")
     df_calculos = normalizacao(df_calculos, "crescimentoPopulacional")
     df_calculos = normalizacao(df_calculos, "totalHabitantes")
     df_calculos = normalizacao(df_calculos, "bonusDemografico")
+
+    # --- Limpeza final de segurança ---
+    df_calculos = df_calculos.replace([np.inf, -np.inf], np.nan).fillna(0)
 
     return df_calculos[["ano_mes", "regiao", "uf", "maturidadePix", "crescimentoPopulacional", "totalHabitantes", "bonusDemografico"]]

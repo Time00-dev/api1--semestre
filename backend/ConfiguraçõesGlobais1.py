@@ -71,9 +71,11 @@ map_idade_media = {
     "40 a 44 anos": 42.0,
     "45 a 49 anos": 47.0,
     "50 a 54 anos": 52.0,
+    "55 a 59 anos": 57.0, # [NOVO] Faixa etária adicionada para completar as 19 faixas do IBGE e evitar valores nulos
     "60 a 64 anos": 62.0,
     "65 a 69 anos": 67.0,
     "70 a 74 anos": 72.0,
+    "75 a 79 anos": 77.0, # [NOVO] Faixa etária adicionada para completar as 19 faixas do IBGE e evitar valores nulos
     "80 a 84 anos": 82.0,
     "85 a 89 anos": 87.0,
     "90 a 94 anos": 92.0,

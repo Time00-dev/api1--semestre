@@ -14,9 +14,8 @@ def calculo_idade():
   )
 
   df_idade["idade_media"] = df_idade["soma_idade"] / df_idade["soma_pop"]
-
-  df_idade["idade_max"] = df_idade.groupby("ano")["idade_media"].transform("max")
-
-  df_idade["bonusDemografico"] = df_idade["idade_max"] - df_idade["idade_media"]
+  # [ALTERADO] Removido o cálculo de diferença (idade_max - idade_media);
+  # Agora atribue a idade media direto ao indicador, mantendo o nome da coluna por compatibilidade
+  df_idade["bonusDemografico"] = df_idade["idade_media"]
 
   return df_idade[["ano", "regiao", "uf", "bonusDemografico"]]
