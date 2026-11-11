@@ -32,30 +32,44 @@ let graficos = [];
 const corDe = new Map(); // cor fixa por sub-região: segue a entidade, não a posição
 const cor = (k) => { if (!corDe.has(k)) corDe.set(k, CORES[corDe.size % CORES.length]); return corDe.get(k); };
 
-// ---------------- dados ----------------
-fetch("dados/mock_sub_regioes.json").then((r) => r.json()).then((json) => {
-  const reg = new Map();
-  for (const r of [...json.eixo_i, ...json.eixo_ii]) {
-    const chave = `${r.uf}-${r.sub_regiao}`, id = `${r.ano_mes}|${chave}`;
-    reg.set(id, { ...(reg.get(id) || {}), ...r, chave, nome: r.nome_sub_regiao || `${r.uf} · CEP ${r.sub_regiao}` });
-  }
-  for (const r of reg.values()) for (const k of [...Object.keys(EIXO_I), ...Object.keys(EIXO_II)]) if (r[k] === 0) r[k] = null; // 0 = sem dado (fillna(0) do notebook)
-  estado.dados = [...reg.values()].map((r) => ({ ...r, risco: media(Object.keys(EIXO_I).map((k) => r[k])), oport: media(Object.keys(EIXO_II).map((k) => r[k])) }));
-  for (const r of estado.dados) {
-    (estado.porMes.get(r.ano_mes) || estado.porMes.set(r.ano_mes, []).get(r.ano_mes)).push(r);
-    (estado.porChave.get(r.chave) || estado.porChave.set(r.chave, []).get(r.chave)).push(r);
-  }
-  estado.porChave.forEach((v) => v.sort((a, b) => a.ano_mes.localeCompare(b.ano_mes)));
-  estado.meses = [...estado.porMes.keys()].sort();
-  estado.mes = estado.meses.at(-1);
-  const sel = $("f-periodo");
-  sel.innerHTML = estado.meses.map((m) => `<option value="${m}">${mesTxt(m)}</option>`).join("");
-  sel.value = estado.mes;
-  sel.onchange = () => { estado.mes = sel.value; render(); };
-  window.addEventListener("hashchange", render);
-  render();
-});
+// ---------------- dados & estados de carregamento/erro ----------------
+const telaEl = $("tela");
+if (telaEl) {
+  telaEl.innerHTML = `<p class="aviso" style="padding: 20px; text-align: center;">Carregando dados do painel...</p>`;
+}
 
+fetch("dados/mock_sub_regioes.json")
+  .then((r) => {
+    if (!r.ok) throw new Error("Não foi possível carregar o arquivo de dados.");
+    return r.json();
+  })
+  .then((json) => {
+    const reg = new Map();
+    for (const r of [...json.eixo_i, ...json.eixo_ii]) {
+      const chave = `${r.uf}-${r.sub_regiao}`, id = `${r.ano_mes}|${chave}`;
+      reg.set(id, { ...(reg.get(id) || {}), ...r, chave, nome: r.nome_sub_regiao || `${r.uf} · CEP ${r.sub_regiao}` });
+    }
+    for (const r of reg.values()) for (const k of [...Object.keys(EIXO_I), ...Object.keys(EIXO_II)]) if (r[k] === 0) r[k] = null;
+    estado.dados = [...reg.values()].map((r) => ({ ...r, risco: media(Object.keys(EIXO_I).map((k) => r[k])), oport: media(Object.keys(EIXO_II).map((k) => r[k])) }));
+    for (const r of estado.dados) {
+      (estado.porMes.get(r.ano_mes) || estado.porMes.set(r.ano_mes, []).get(r.ano_mes)).push(r);
+      (estado.porChave.get(r.chave) || estado.porChave.set(r.chave, []).get(r.chave)).push(r);
+    }
+    estado.porChave.forEach((v) => v.sort((a, b) => a.ano_mes.localeCompare(b.ano_mes)));
+    estado.meses = [...estado.porMes.keys()].sort();
+    estado.mes = estado.meses.at(-1);
+    const sel = $("f-periodo");
+    sel.innerHTML = estado.meses.map((m) => `<option value="${m}">${mesTxt(m)}</option>`).join("");
+    sel.value = estado.mes;
+    sel.onchange = () => { estado.mes = sel.value; render(); };
+    window.addEventListener("hashchange", render);
+    render();
+  })
+  .catch((err) => {
+    if (telaEl) {
+      telaEl.innerHTML = `<p class="aviso" style="color: #ff8a6a; padding: 20px;"><b>Erro de consulta:</b> Não foi possível carregar os dados (${err.message}). Verifique se o arquivo está na pasta 'dados/'.</p>`;
+    }
+  });
 const doMes = (mes = estado.mes) => estado.porMes.get(mes) || [];
 const reg = (chave, mes = estado.mes) => doMes(mes).find((r) => r.chave === chave);
 const serie = (chave) => estado.porChave.get(chave) || [];
@@ -231,17 +245,14 @@ function telaDetalhe(r) {
   const s = serie(x.chave), d12 = s.at(-1).inadimplenciaReal - s[0].inadimplenciaReal;
   const total = doMes().length;
   tela(`
-    <p class="aviso"><b>Inadimplência</b> e <b>crescimento da dívida vencida</b> são medidos na própria sub-região. Vulnerabilidade social e o Eixo II são do estado (${x.uf}) e se repetem nas ${daUF.length} sub-regiões dele. A fragilidade está sem dado: a API do SCR não envia risco D-H desde jan/2025.</p>
+    <p class="aviso"><b>Nota:</b> Indicadores de <b>inadimplência</b> e <b>crescimento da dívida</b> são calculados na própria sub-região. Indicadores de vulnerabilidade social e do Eixo II são dados consolidados a nível de <b>UF (${x.uf})</b> e se repetem nas ${daUF.length} sub-regiões do estado (amostra estadual). A fragilidade está sem dado a partir de jan/2025.</p>
     <div class="ferramentas">
       <button id="add">${estado.selecao.has(x.chave) ? "Na comparação ✓" : "Adicionar à comparação"}</button>
       <a class="btn" href="#/comparar?s=${[...new Set([...estado.selecao, x.chave])].slice(0, MAX_COMPARAR).join(",")}">Abrir comparação</a>
       <a href="#/subregioes?regiao=${x.regiao}">Outras sub-regiões do ${x.regiao}</a>
     </div>
     <div class="kpis">
-      ${kpi("Risco", fmt(x.risco), `${posicao(x, "risco")}º maior de ${total} · Brasil ${fmt(br.risco)}`)}
-      ${kpi("Oportunidade", fmt(x.oport), `${posicao(x, "oport")}º maior de ${total} · Brasil ${fmt(br.oport)}`)}
-      ${kpi("Inadimplência", fmt(x.inadimplenciaReal), `${sinal(d12)} em 12 meses · Brasil ${fmt(br.inadimplenciaReal)}`)}
-      ${kpi("Vulnerabilidade social", fmt(x.vulnerabilidadeSocial), `estadual (${x.uf})`)}
+      ${kpi("Risco", fmt(x.risco), `${posicao(x, "risco")}º maior de ${total} · Brasil ${fmt(br.risco)}`)} ${kpi("Oportunidade", fmt(x.oport), `${posicao(x, "oport")}º maior de ${total} · Brasil ${fmt(br.oport)}`)} ${kpi("Inadimplência", fmt(x.inadimplenciaReal), `${sinal(d12)} em 12 meses · Brasil ${fmt(br.inadimplenciaReal)}`)} ${kpi("Vulnerabilidade social", fmt(x.vulnerabilidadeSocial), `estadual (${x.uf})`)}
     </div>
     <div class="grade dupla">
       ${painel("e1", `Indicadores de risco: ${esc(x.nome)} × estado × Brasil`)}
@@ -257,7 +268,6 @@ function telaDetalhe(r) {
   linhas("t", [{ nome: x.nome, dados: s.map((y) => y.inadimplenciaReal), cor: C.esta }, { nome: `Média ${x.uf}`, dados: serieUF, cor: C.uf }, { nome: "Média Brasil", dados: serieBrasil("inadimplenciaReal"), cor: BRANCO, ref: true }], "Inadimplência (nota)");
   mapa("m", [{ ...x, cor: C.esta }]);
 }
-
 function telaComparar(r) {
   titulo("Comparar sub-regiões");
   // ?s= presente (mesmo vazio) manda; sem ?s= (link do menu) usa a seleção atual ou, na primeira vez, o padrão
