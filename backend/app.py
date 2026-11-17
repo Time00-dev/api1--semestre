@@ -7,28 +7,26 @@ Rodar (depois de preparar o banco, ver backend/banco.py):
     flask --app backend/app run
     abrir http://localhost:5000  (site)  ou  http://localhost:5000/api/sub-regioes  (dados)
 """
+import hmac
+import logging
 import os
 from decimal import Decimal
 
 import pymysql
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
-from banco import PASTA, conectar
+import carga
+from banco import AMOSTRA, CHAVE, EIXO_I, EIXO_II, PASTA, SCORE, conectar
 
-# Nomes iguais aos das colunas da tabela resultado_mensal e às chaves do JSON.
-CHAVE = ["ano_mes", "regiao", "uf", "sub_regiao", "nome_sub_regiao"]
-EIXO_I = ["inadimplenciaReal", "fragilidadeRenda", "agingDivida", "vulnerabilidadeSocial"]
-EIXO_II = ["maturidadePix", "crescimentoPopulacional", "totalHabitantes", "bonusDemografico"]
-SCORE = ["score", "faixa", "ranking"]
-AMOSTRA = ["operacoes", "peso"]  # só os indicadores de crédito (Eixo I) dependem do tamanho da amostra
-
-# Os nomes das colunas são constantes deste arquivo: nada que vem do usuário entra no texto do SQL.
+# Os nomes das colunas são constantes do banco.py: nada que vem do usuário entra no texto do SQL.
 SQL_RESULTADOS = (
     f"SELECT {', '.join(CHAVE + EIXO_I + EIXO_II + SCORE + AMOSTRA)} "
     "FROM resultado_mensal ORDER BY ano_mes, uf, sub_regiao"
 )
 
 app = Flask(__name__, static_folder=os.path.join(PASTA, "..", "frontend"), static_url_path="")
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB por envio; um mês inteiro tem uns 60 KB
+app.logger.setLevel(logging.INFO)  # sem isso, o registro "Carga gravada" não aparece no terminal
 
 
 def para_json(valor):
@@ -63,6 +61,39 @@ def sub_regioes():
         app.logger.exception("Falha ao consultar o banco")
         return jsonify(erro="Banco de dados indisponível"), 503
     return jsonify(montar_resposta(linhas))
+
+
+def token_valido():
+    """Compara o cabeçalho X-Token-Carga com o CARGA_TOKEN do backend/.env em tempo constante."""
+    esperado = os.environ.get("CARGA_TOKEN", "")
+    recebido = request.headers.get("X-Token-Carga", "")
+    return hmac.compare_digest(recebido.encode(), esperado.encode())
+
+
+@app.post("/api/carga")
+def receber_carga():
+    """GJ00-60: o Colab envia os resultados para cá (pelo túnel), e eles são gravados no banco."""
+    if not os.environ.get("CARGA_TOKEN"):
+        return jsonify(erro="Carga desativada: defina CARGA_TOKEN em backend/.env"), 503
+    if not token_valido():
+        # sem IP: atrás do túnel, o endereço é sempre o do próprio túnel (127.0.0.1)
+        app.logger.warning("Carga recusada: token ausente ou errado")
+        return jsonify(erro="Token de carga ausente ou inválido"), 401
+    try:
+        linhas = carga.preparar(request.get_json(silent=True))  # confere tudo antes de abrir conexão com o banco
+    except ValueError as erro:
+        return jsonify(erro=f"Nada foi gravado. {erro}"), 400
+    try:
+        conexao = conectar()
+        try:
+            total = carga.carregar(conexao, linhas)
+        finally:
+            conexao.close()
+    except (pymysql.MySQLError, RuntimeError, ValueError):
+        app.logger.exception("Falha ao gravar a carga no banco")
+        return jsonify(erro="Banco de dados indisponível"), 503
+    app.logger.info("Carga gravada: %s linhas", total)
+    return jsonify(linhas_gravadas=total), 201
 
 
 @app.get("/")
