@@ -28,7 +28,6 @@ def linha_do_banco(**trocas):
 
 class MontarResposta(unittest.TestCase):
     def test_nota_decimal_vira_numero_e_nao_texto(self):
-        # o Flask escreveria Decimal como "3.25" (texto) e o site trataria a nota como sem dado
         item = api.montar_resposta([linha_do_banco()])["eixo_i"][0]
         self.assertIsInstance(item["inadimplenciaReal"], float)
         self.assertEqual(item["inadimplenciaReal"], 3.25)
@@ -56,15 +55,21 @@ class MontarResposta(unittest.TestCase):
             item = resposta[eixo][0]
             self.assertEqual((item["score"], item["faixa"], item["ranking"]), (61.5, "Oportunidade com cautela", 7))
 
-    def test_banco_vazio_devolve_as_duas_listas_vazias(self):
-        self.assertEqual(api.montar_resposta([]), {"eixo_i": [], "eixo_ii": []})
+    def test_banco_vazio_devolve_as_duas_listas_vazias_e_mensagem(self):
+        resposta = api.montar_resposta([], meses_disponiveis=["202608"])
+        self.assertEqual(resposta["eixo_i"], [])
+        self.assertEqual(resposta["eixo_ii"], [])
+        self.assertEqual(resposta["meses_disponiveis"], ["202608"])
+        self.assertIn("Nenhum resultado", resposta["mensagem"])
 
 
 class ConexaoFalsa:
-    """Só o que a rota usa do PyMySQL: cursor() com execute/fetchall e close()."""
+    """Simula cursor do PyMySQL suportando múltiplas chamadas execute/fetchall e registrando queries."""
 
-    def __init__(self, linhas):
-        self.linhas, self.fechada = linhas, False
+    def __init__(self, resultados_por_consulta):
+        self.resultados = list(resultados_por_consulta)
+        self.executados = []
+        self.fechada = False
 
     def cursor(self):
         return self
@@ -76,10 +81,10 @@ class ConexaoFalsa:
         return False
 
     def execute(self, sql, parametros=None):
-        pass
+        self.executados.append((sql, parametros))
 
     def fetchall(self):
-        return self.linhas
+        return self.resultados.pop(0) if self.resultados else []
 
     def close(self):
         self.fechada = True
@@ -90,16 +95,71 @@ class Rotas(unittest.TestCase):
         self.cliente = api.app.test_client()
 
     def test_rota_devolve_json_com_nota_numerica_e_fecha_a_conexao(self):
-        conexao = ConexaoFalsa([linha_do_banco()])
+        conexao = ConexaoFalsa([[linha_do_banco()], [{"ano_mes": "202608"}]])
         with mock.patch.object(api, "conectar", return_value=conexao):
             resposta = self.cliente.get("/api/sub-regioes")
+        dados = resposta.get_json()
         self.assertEqual(resposta.status_code, 200)
-        self.assertEqual(resposta.get_json()["eixo_i"][0]["inadimplenciaReal"], 3.25)
+        self.assertEqual(dados["eixo_i"][0]["inadimplenciaReal"], 3.25)
+        self.assertEqual(dados["meses_disponiveis"], ["202608"])
         self.assertTrue(conexao.fechada)
+
+    def test_filtros_usam_parametros_sql_e_retornam_resultados(self):
+        conexao = ConexaoFalsa([
+            [linha_do_banco(score=Decimal("74.20"))],
+            [{"ano_mes": "202608"}, {"ano_mes": "202607"}],
+        ])
+        with mock.patch.object(api, "conectar", return_value=conexao):
+            resposta = self.cliente.get("/api/sub-regioes?ano_mes=202608&regiao=Sudeste&uf=sp&sub_regiao=01")
+
+        self.assertEqual(resposta.status_code, 200)
+        dados = resposta.get_json()
+        self.assertEqual(dados["eixo_i"][0]["score"], 74.2)
+        self.assertEqual(dados["meses_disponiveis"], ["202608", "202607"])
+
+        sql_consulta, params = conexao.executados[0]
+        self.assertIn("WHERE ano_mes = %s AND regiao = %s AND uf = %s AND sub_regiao = %s", sql_consulta)
+        self.assertEqual(params, ["202608", "Sudeste", "SP", "01"])
+
+    def test_consulta_sem_resultados_retorna_listas_vazias_e_mensagem(self):
+        conexao = ConexaoFalsa([[], [{"ano_mes": "202608"}]])
+        with mock.patch.object(api, "conectar", return_value=conexao):
+            resposta = self.cliente.get("/api/sub-regioes?ano_mes=202608&uf=AC")
+
+        self.assertEqual(resposta.status_code, 200)
+        dados = resposta.get_json()
+        self.assertEqual(dados["eixo_i"], [])
+        self.assertEqual(dados["eixo_ii"], [])
+        self.assertEqual(dados["meses_disponiveis"], ["202608"])
+        self.assertIn("Nenhum resultado", dados["mensagem"])
+
+    def test_filtro_ano_mes_invalido_retorna_400(self):
+        resposta = self.cliente.get("/api/sub-regioes?ano_mes=2026-08")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("ano_mes", resposta.get_json()["erro"])
+
+    def test_filtro_regiao_invalida_retorna_400(self):
+        resposta = self.cliente.get("/api/sub-regioes?regiao=Leste")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("regiao", resposta.get_json()["erro"])
+
+    def test_filtro_uf_invalida_retorna_400(self):
+        resposta = self.cliente.get("/api/sub-regioes?uf=123")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("uf", resposta.get_json()["erro"])
+
+    def test_filtro_sub_regiao_sem_uf_retorna_400(self):
+        resposta = self.cliente.get("/api/sub-regioes?sub_regiao=01")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("uf", resposta.get_json()["erro"])
+
+    def test_filtro_desconhecido_retorna_400(self):
+        resposta = self.cliente.get("/api/sub-regioes?campo_inexistente=1")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("campo_inexistente", resposta.get_json()["erro"])
 
     def test_banco_fora_do_ar_devolve_503_sem_detalhes(self):
         erro = pymysql.err.OperationalError(2003, "Can't connect to MySQL server on 'localhost'")
-        # o detalhe do erro vai para o registro do servidor, e não para quem chamou a API
         with mock.patch.object(api, "conectar", side_effect=erro), self.assertLogs(api.app.logger, "ERROR"):
             resposta = self.cliente.get("/api/sub-regioes")
         self.assertEqual(resposta.status_code, 503)
@@ -112,14 +172,12 @@ class Rotas(unittest.TestCase):
         self.assertEqual(resposta.status_code, 503)
 
     def test_porta_invalida_no_env_tambem_devolve_503(self):
-        # DB_PORT=abc faz o int() do banco.py falhar com ValueError
         with mock.patch.dict(os.environ, {"DB_PORT": "abc"}), self.assertLogs(api.app.logger, "ERROR"):
             resposta = self.cliente.get("/api/sub-regioes")
         self.assertEqual(resposta.status_code, 503)
         self.assertEqual(resposta.get_json(), {"erro": "Banco de dados indisponível"})
 
     def test_toda_coluna_consultada_existe_no_schema(self):
-        # nome trocado no schema.sql ou digitado errado no app.py só apareceria com o servidor no ar
         with open(os.path.join(api.PASTA, "schema.sql"), encoding="utf-8") as arquivo:
             colunas_do_schema = set(re.findall(r"^\s+(\w+)\s+(?:CHAR|VARCHAR|DECIMAL|INT)\b", arquivo.read(), re.MULTILINE))
         consultadas = set(api.CHAVE + api.EIXO_I + api.EIXO_II + api.SCORE + api.AMOSTRA)
@@ -157,11 +215,11 @@ class RotaCarga(unittest.TestCase):
             resposta = self.enviar(token=None)
         self.assertEqual(resposta.status_code, 401)
         conectar.assert_not_called()
-
+        
     def test_token_errado_devolve_401_e_fica_registrado(self):
         with self.assertLogs(api.app.logger, "WARNING") as registro:
             self.assertEqual(self.enviar(token="outro").status_code, 401)
-        self.assertNotIn("outro", "".join(registro.output))  # o token recebido não vai para o log
+        self.assertNotIn("outro", "".join(registro.output))
 
     def test_servidor_sem_token_configurado_recusa_toda_carga(self):
         with mock.patch.dict(os.environ, {"CARGA_TOKEN": ""}), mock.patch.object(api, "conectar") as conectar:
@@ -203,3 +261,4 @@ class RotaCarga(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
