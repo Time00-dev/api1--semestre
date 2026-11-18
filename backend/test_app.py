@@ -138,5 +138,68 @@ class Rotas(unittest.TestCase):
         resposta.close()
 
 
+class RotaCarga(unittest.TestCase):
+    TOKEN = "token-de-teste-123"
+
+    def setUp(self):
+        self.cliente = api.app.test_client()
+        self.env = mock.patch.dict(os.environ, {"CARGA_TOKEN": self.TOKEN})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.dados = {"eixo_i": [{"ano_mes": "202608", "uf": "AC", "sub_regiao": "69", "inadimplenciaReal": 3.25}]}
+
+    def enviar(self, corpo=None, token=TOKEN, **extras):
+        cabecalhos = {"X-Token-Carga": token} if token is not None else {}
+        return self.cliente.post("/api/carga", json=self.dados if corpo is None else corpo, headers=cabecalhos, **extras)
+
+    def test_sem_token_devolve_401_e_nao_toca_no_banco(self):
+        with mock.patch.object(api, "conectar") as conectar, self.assertLogs(api.app.logger, "WARNING"):
+            resposta = self.enviar(token=None)
+        self.assertEqual(resposta.status_code, 401)
+        conectar.assert_not_called()
+
+    def test_token_errado_devolve_401_e_fica_registrado(self):
+        with self.assertLogs(api.app.logger, "WARNING") as registro:
+            self.assertEqual(self.enviar(token="outro").status_code, 401)
+        self.assertNotIn("outro", "".join(registro.output))  # o token recebido não vai para o log
+
+    def test_servidor_sem_token_configurado_recusa_toda_carga(self):
+        with mock.patch.dict(os.environ, {"CARGA_TOKEN": ""}), mock.patch.object(api, "conectar") as conectar:
+            resposta = self.enviar(token="")
+        self.assertEqual(resposta.status_code, 503)
+        conectar.assert_not_called()
+
+    def test_corpo_que_nao_e_json_devolve_400(self):
+        resposta = self.cliente.post("/api/carga", data="nao e json", content_type="application/json",
+                                     headers={"X-Token-Carga": self.TOKEN})
+        self.assertEqual(resposta.status_code, 400)
+
+    def test_linha_invalida_devolve_400_com_o_motivo_e_nao_toca_no_banco(self):
+        with mock.patch.object(api, "conectar") as conectar:
+            resposta = self.enviar({"eixo_i": [{"ano_mes": "202608", "uf": "XX", "sub_regiao": "69"}]})
+        self.assertEqual(resposta.status_code, 400)
+        self.assertIn("eixo_i[0]", resposta.get_json()["erro"])
+        conectar.assert_not_called()
+
+    def test_carga_valida_devolve_201_com_a_contagem(self):
+        conexao = mock.MagicMock()
+        with mock.patch.object(api, "conectar", return_value=conexao), self.assertLogs(api.app.logger, "INFO"):
+            resposta = self.enviar()
+        self.assertEqual(resposta.status_code, 201)
+        self.assertEqual(resposta.get_json(), {"linhas_gravadas": 1})
+        conexao.commit.assert_called_once()
+        conexao.close.assert_called_once()
+
+    def test_banco_fora_do_ar_devolve_503(self):
+        erro = pymysql.err.OperationalError(2003, "Can't connect")
+        with mock.patch.object(api, "conectar", side_effect=erro), self.assertLogs(api.app.logger, "ERROR"):
+            self.assertEqual(self.enviar().status_code, 503)
+
+    def test_corpo_grande_demais_devolve_413(self):
+        resposta = self.cliente.post("/api/carga", data="x" * (api.app.config["MAX_CONTENT_LENGTH"] + 1),
+                                     content_type="application/json", headers={"X-Token-Carga": self.TOKEN})
+        self.assertEqual(resposta.status_code, 413)
+
+
 if __name__ == "__main__":
     unittest.main()

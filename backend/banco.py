@@ -18,6 +18,14 @@ from dotenv import load_dotenv
 PASTA = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(PASTA, ".env"))
 
+# Colunas da tabela resultado_mensal (schema.sql), com os mesmos nomes das chaves do JSON.
+# A API (app.py) e a carga (carga.py) usam estas listas: nenhum nome de coluna vem de fora.
+CHAVE = ["ano_mes", "regiao", "uf", "sub_regiao", "nome_sub_regiao"]
+EIXO_I = ["inadimplenciaReal", "fragilidadeRenda", "agingDivida", "vulnerabilidadeSocial"]
+EIXO_II = ["maturidadePix", "crescimentoPopulacional", "totalHabitantes", "bonusDemografico"]
+SCORE = ["score", "faixa", "ranking"]
+AMOSTRA = ["operacoes", "peso"]  # só os indicadores de crédito (Eixo I) dependem do tamanho da amostra
+
 
 def configuracao():
     """Lê do ambiente os dados da conexão. Campo em branco usa o valor padrão."""
