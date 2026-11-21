@@ -1,7 +1,7 @@
 // Software de análise navegável. Os dados vêm da API Flask (GET /api/sub-regioes, backend/app.py), que lê o banco
 // no formato do frontend/dados/mock_sub_regioes.json (o contrato). Abrir pelo Flask: flask --app backend/app run
 // Nota 0 = "sem dado". Score, faixa e ranking são calculados no notebook (GJ00-58/60), não aqui.
-const API_DADOS = "api/sub-regioes"; // relativo, como app.js e style.css
+const API_DADOS = CONFIG_DADOS.apiUrl || "api/sub-regioes";
 const MESES_GRAFICO = 12; // gráficos de evolução: os 12 meses que terminam no mês escolhido
 const EIXO_I = { inadimplenciaReal: "Inadimplência", fragilidadeRenda: "Fragilidade (risco D-H)", agingDivida: "Cresc. da dívida vencida", vulnerabilidadeSocial: "Vulnerab. social" };
 const EIXO_II = { maturidadePix: "Maturidade Pix", crescimentoPopulacional: "Crescimento pop.", totalHabitantes: "Habitantes", bonusDemografico: "Bônus demográfico" };
@@ -42,12 +42,27 @@ if (telaEl) {
   telaEl.innerHTML = `<p class="aviso" style="padding: 20px; text-align: center;">Carregando dados do painel...</p>`;
 }
 
-fetch(API_DADOS)
-  .then((r) => {
-    // a API explica o problema em {erro: "..."}; sem isso, mostra só o código
-    if (!r.ok) return r.json().catch(() => ({})).then((j) => { throw new Error(j.erro || `a API respondeu ${r.status}`); });
-    return r.json();
-  })
+async function buscarDados(url) {
+  const resposta = await fetch(url);
+  if (!resposta.ok) {
+    const { erro } = await resposta.json().catch(() => ({}));
+    throw new Error(erro || `a fonte de dados respondeu ${resposta.status}`);
+  }
+  return resposta.json();
+}
+
+async function carregarDados() {
+  if (!CONFIG_DADOS.pages) return buscarDados(API_DADOS);
+  if (CONFIG_DADOS.apiUrl) {
+    const dados = await buscarDados(API_DADOS).catch(() => null);
+    if (dados?.eixo_i?.length) return dados;
+  }
+  const dados = await buscarDados("dados/mock_sub_regioes.json");
+  $("aviso-dados").hidden = false;
+  return dados;
+}
+
+carregarDados()
   .then((json) => {
     if (!json.eixo_i?.length) {
       titulo("Nenhum dado carregado");
@@ -78,7 +93,7 @@ fetch(API_DADOS)
   .catch((err) => {
     $("titulo").textContent = "Dados indisponíveis";
     if (telaEl) {
-      telaEl.innerHTML = `<p class="aviso" role="alert" style="color: #ff8a6a; padding: 20px;"><b>Erro de consulta:</b> Não foi possível carregar os dados (${esc(err.message)}). Verifique se o Flask está ligado e se o banco está disponível.</p>`;
+      telaEl.innerHTML = `<p class="aviso" role="alert" style="color: #ff8a6a; padding: 20px;"><b>Erro de consulta:</b> Não foi possível carregar os dados (${esc(err.message)}). ${CONFIG_DADOS.pages ? "Tente novamente em instantes." : "Verifique se o Flask está ligado e se o banco está disponível."}</p>`;
     }
   });
 const doMes = (mes = estado.mes) => estado.porMes.get(mes) || [];

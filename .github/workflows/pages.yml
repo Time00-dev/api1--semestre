@@ -1,0 +1,47 @@
+name: Publicar frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - frontend/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Configurar fonte de dados
+        env:
+          PAGES_API_URL: ${{ vars.PAGES_API_URL }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config = {"pages": True, "apiUrl": os.environ["PAGES_API_URL"].strip()}
+          Path("frontend/config.js").write_text(
+              "const CONFIG_DADOS = " + json.dumps(config) + ";\n", encoding="utf-8"
+          )
+          PY
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend
+      - uses: actions/deploy-pages@v5
+        id: deploy

@@ -2,6 +2,8 @@
 
 ### Crédito Inclusivo com Dados do Banco Central do Brasil
 
+[Abrir painel no GitHub Pages](https://time00-dev.github.io/api1--semestre/)
+
 > Projeto desenvolvido pela equipe **Time00.dev** no curso de Desenvolvimento de Software Multiplataforma (DSM) da FATEC.
 
 ---
@@ -81,6 +83,14 @@ O projeto será desenvolvido em três etapas principais:
 ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)
 
 ---
+
+## Publicação do painel
+
+O GitHub Actions publica a pasta `frontend/` no GitHub Pages. A publicação usa os dados simulados do projeto quando não há uma API configurada ou quando ela está indisponível ou sem resultados.
+
+Para conectar a publicação ao Flask hospedado, configure a variável `PAGES_API_URL` no repositório com a URL HTTPS completa de `/api/sub-regioes` e execute o workflow **Publicar frontend**. O servidor da API precisa permitir via CORS a origem `https://time00-dev.github.io`.
+
+Para rodar localmente com MariaDB, siga a configuração de `backend/.env.exemplo`, execute `python backend/banco.py` e inicie com `flask --app backend/app run`. O painel servido pelo Flask consulta a API no mesmo endereço.
 
 ## 🗄️ Dados
 
