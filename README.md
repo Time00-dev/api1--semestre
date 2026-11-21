@@ -2,7 +2,8 @@
 
 ### Crédito Inclusivo com Dados do Banco Central do Brasil
 
-[Abrir painel no GitHub Pages](https://time00-dev.github.io/api1--semestre/)
+- [Abrir o painel no GitHub Pages](https://time00-dev.github.io/api1--semestre/)
+- [Abrir o notebook no Google Colab](https://colab.research.google.com/drive/1jXD78zBT7EDTlG1bosBBgvayKodDTIVz?usp=sharing)
 
 > Projeto desenvolvido pela equipe **Time00.dev** no curso de Desenvolvimento de Software Multiplataforma (DSM) da FATEC.
 
@@ -29,13 +30,13 @@ O projeto busca explorar dados como:
 - 📊 Endividamento
 - 📈 Crescimento da carteira de crédito
 
-A partir desses indicadores, será trabalhado um **Score de Oportunidade**, permitindo analisar diferentes regiões e identificar possíveis oportunidades de crédito.
+A partir desses indicadores, o projeto calcula um **Score de Oportunidade**, permitindo analisar diferentes regiões e identificar possíveis oportunidades de crédito.
 
 ---
 
 ## 🔎 Desenvolvimento
 
-O projeto será desenvolvido em três etapas principais:
+O projeto está organizado em três etapas principais.
 
 ### 1️⃣ Auditoria e leitura de código
 
@@ -90,13 +91,9 @@ O GitHub Actions publica a pasta `frontend/` no GitHub Pages. A publicação usa
 
 Para conectar a publicação ao Flask hospedado, configure a variável `PAGES_API_URL` no repositório com a URL HTTPS completa de `/api/sub-regioes` e execute o workflow **Publicar frontend**. O servidor da API precisa permitir via CORS a origem `https://time00-dev.github.io`.
 
-Para rodar localmente com MariaDB, siga a configuração de `backend/.env.exemplo`, execute `python backend/banco.py` e inicie com `flask --app backend/app run`. O painel servido pelo Flask consulta a API no mesmo endereço.
-
 ## 🗄️ Dados
 
-Os dados utilizados no projeto são provenientes de **bases públicas do Banco Central do Brasil (BCB)**.
-
-A preparação da base deverá ser realizada no **Google Colab**, utilizando as bases públicas diretamente por biblioteca ou download.
+O notebook no **Google Colab** reúne dados públicos do **Banco Central do Brasil (BCB)**, incluindo SCR e Pix, e dados demográficos do **IBGE**.
 
 O processo envolve:
 
@@ -106,6 +103,92 @@ O processo envolve:
 - Análise exploratória
 - Validação
 - Preparação para utilização na aplicação
+
+---
+
+## ☁️ Executar o notebook no Google Colab
+
+1. Abra o [notebook no Google Colab](https://colab.research.google.com/drive/1jXD78zBT7EDTlG1bosBBgvayKodDTIVz?usp=sharing), conecte um ambiente de execução e rode a célula **Instalação**.
+2. Execute as células em ordem até **EXECUÇÃO PRINCIPAL**. Essa etapa baixa e trata os dados, calcula os indicadores e gera o Score de Oportunidade por sub-região. Aguarde o fim da extração antes de seguir.
+3. Rode as células de conferência do score e de visualização gráfica. Para analisar os resultados só no Colab, pule a célula **Enviar resultados para o banco**, que depende de uma API configurada.
+
+---
+
+## ▶️ Executar a aplicação Flask localmente
+
+Você precisa de **Python 3.10 ou superior**, **pip** e um servidor **MariaDB ou MySQL** em execução. Rode os comandos abaixo na raiz do repositório.
+
+### 1. Instalar as dependências
+
+```bash
+python -m venv .venv
+```
+
+No Windows (PowerShell), ative o ambiente e copie o modelo de configuração.
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+Copy-Item backend/.env.exemplo backend/.env
+```
+
+No Linux ou macOS, use estes comandos.
+
+```bash
+source .venv/bin/activate
+cp backend/.env.exemplo backend/.env
+```
+
+Com o ambiente ativo, instale as dependências do Flask.
+
+```bash
+python -m pip install -r backend/requirements.txt
+```
+
+### 2. Configurar o banco
+
+Conecte-se ao MariaDB ou MySQL com um usuário administrador. Para um banco na mesma máquina que o Flask, execute o SQL abaixo e troque a senha do exemplo por uma senha sua.
+
+```sql
+CREATE DATABASE negado_pelo_banco CHARACTER SET utf8mb4;
+CREATE USER 'negado_app'@'localhost' IDENTIFIED BY 'sua-senha';
+GRANT ALL PRIVILEGES ON negado_pelo_banco.* TO 'negado_app'@'localhost';
+```
+
+Em `backend/.env`, use `DB_HOST=localhost`, `DB_PORT=3306`, `DB_NAME=negado_pelo_banco`, `DB_USER=negado_app` e preencha `DB_PASSWORD` com a senha definida no banco. Ajuste o host e a porta se sua instalação usar outros valores. Deixe `CARGA_TOKEN` em branco se for usar apenas a carga por arquivo.
+
+Crie as tabelas e, para testar com a base simulada do repositório, carregue o JSON de exemplo.
+
+```bash
+python backend/banco.py
+python backend/carga.py frontend/dados/mock_sub_regioes.json
+```
+
+### 3. Iniciar o Flask
+
+```bash
+python -m flask --app backend/app run
+```
+
+- [Painel local](http://localhost:5000/)
+- [API local de sub-regiões](http://localhost:5000/api/sub-regioes)
+
+### Carregar os dados reais do Colab
+
+Se for enviar os resultados pelo notebook, gere um token com `python -c "import secrets; print(secrets.token_urlsafe(32))"` e salve-o em `CARGA_TOKEN` no `backend/.env`. Reinicie o Flask e configure um túnel HTTPS para a porta `5000`. Em **Secrets** no Colab, cadastre `CARGA_TOKEN` com o mesmo valor e habilite o acesso ao notebook. Depois da **EXECUÇÃO PRINCIPAL**, coloque a URL atual do túnel em `URL_API_LOCAL` e rode a célula **Enviar resultados para o banco**.
+
+Para importar sem túnel, adicione uma célula após a execução principal e baixe o lote do mês mais recente.
+
+```python
+import json
+from google.colab import files
+
+lotes = montar_lotes(df_score_sub_regiao)
+with open("resultados.json", "w", encoding="utf-8") as arquivo:
+    json.dump(lotes[max(lotes)], arquivo, ensure_ascii=False, allow_nan=False)
+files.download("resultados.json")
+```
+
+Salve o arquivo baixado na raiz do repositório e rode `python backend/carga.py resultados.json`. A carga atualiza os meses incluídos no arquivo. Para trabalhar só com dados reais, use um banco que ainda não recebeu a base simulada.
 
 ---
 
@@ -153,7 +236,7 @@ O desenvolvimento será organizado através do GitHub utilizando:
 
 ## 📈 Status
 
-🟡 **Em planejamento**
+🟢 **Painel publicado.** O GitHub Pages serve a interface, e a API Flask fornece os indicadores e rankings calculados no notebook.
 
 ---
 
