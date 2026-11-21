@@ -119,23 +119,73 @@ const kpi = (rot, val, sub = "") => `<div class="kpi"><span>${rot}</span><strong
 const novo = (id, cfg) => graficos.push(new Chart($("g-" + id), cfg));
 const eixoNota = (t) => ({ min: 1, max: 5, title: { display: true, text: t }, grid: { color: GRID } });
 
+function exemplosVariados() {
+  const restantes = doMes().filter((r) => Number.isFinite(r.risco) && Number.isFinite(r.oport));
+  const centro = brasil();
+  const escolhidos = [];
+  const distancia = (a, b) => Math.hypot(a.risco - b.risco, a.oport - b.oport);
+
+  while (escolhidos.length < 4 && restantes.length) {
+    const referencias = escolhidos.length ? escolhidos : [centro];
+    const menorDistancia = (r) => Math.min(...referencias.map((ref) => distancia(r, ref)));
+    restantes.sort((a, b) => menorDistancia(b) - menorDistancia(a));
+    if (escolhidos.length && menorDistancia(restantes[0]) < 0.4) break;
+    escolhidos.push(restantes.shift());
+  }
+  return escolhidos.map((r) => r.chave);
+}
+
 // rótulos dos pontos em destaque + linhas da média Brasil + quadrante
 const extras = {
   id: "extras",
   afterDraw(ch, _a, o) {
     const { ctx, chartArea: ca, scales: { x, y } } = ch;
     ctx.save();
+    const ocupadas = [];
     if (o.br) {
       ctx.setLineDash([5, 4]); ctx.strokeStyle = BRANCO; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
       const bx = x.getPixelForValue(o.br.risco), by = y.getPixelForValue(o.br.oport);
       ctx.beginPath(); ctx.moveTo(bx, ca.top); ctx.lineTo(bx, ca.bottom); ctx.moveTo(ca.left, by); ctx.lineTo(ca.right, by); ctx.stroke();
       ctx.setLineDash([]); ctx.globalAlpha = 1;
-      ctx.fillStyle = ACENTO; ctx.font = "600 12px Inter"; ctx.fillText("↖ menor risco, maior oportunidade", ca.left + 8, ca.top + 16);
-      ctx.fillStyle = TXT; ctx.font = "12px Inter"; ctx.fillText("média Brasil", bx + 4, ca.bottom - 6);
+      const quadrante = "↖ menor risco, maior oportunidade";
+      ctx.fillStyle = ACENTO; ctx.font = "600 12px Inter";
+      ctx.fillText(quadrante, ca.left + 8, ca.top + 16);
+      ocupadas.push({ x: ca.left + 4, y: ca.top + 2, largura: ctx.measureText(quadrante).width + 8, altura: 18 });
+
+      const media = "média Brasil";
+      ctx.fillStyle = TXT; ctx.font = "12px Inter";
+      const larguraMedia = ctx.measureText(media).width;
+      const xMedia = Math.min(bx + 4, ca.right - larguraMedia - 4);
+      ctx.fillText(media, xMedia, ca.bottom - 6);
+      ocupadas.push({ x: xMedia - 4, y: ca.bottom - 20, largura: larguraMedia + 8, altura: 18 });
     }
-    const pts = ch.data.datasets.map((ds, i) => ({ ds, p: ch.getDatasetMeta(i).data[0] })).filter((o) => o.ds.rotulo && o.p).sort((a, b) => a.p.x - b.p.x);
-    ctx.fillStyle = BRANCO; ctx.font = "600 12px Inter";
-    pts.forEach(({ ds, p }, i) => { ctx.textAlign = i % 2 ? "left" : "right"; ctx.fillText(ds.rotulo, p.x + (i % 2 ? 10 : -10), p.y + (i % 2 ? 18 : -10)); });
+
+    const pontos = ch.data.datasets
+      .map((ds, i) => ({ ds, p: ch.getDatasetMeta(i).data[0], visivel: ch.isDatasetVisible(i) }))
+      .filter(({ ds, p, visivel }) => ds.rotulo && visivel && p && !p.skip);
+    for (const { p } of pontos) {
+      ocupadas.push({ x: p.x - 9, y: p.y - 9, largura: 18, altura: 18 });
+    }
+
+    ctx.fillStyle = BRANCO;
+    ctx.font = "600 12px Inter";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    for (const { ds, p } of pontos) {
+      const largura = Math.ceil(ctx.measureText(ds.rotulo).width) + 8;
+      const altura = 16;
+      const posicoes = [
+        [p.x + 10, p.y - altura / 2], [p.x - largura - 10, p.y - altura / 2],
+        [p.x - largura / 2, p.y - altura - 10], [p.x - largura / 2, p.y + 10],
+      ];
+      const caixa = posicoes.map(([x, y]) => ({ x, y, largura, altura })).find((c) =>
+        c.x >= ca.left && c.x + c.largura <= ca.right && c.y >= ca.top && c.y + c.altura <= ca.bottom
+        && ocupadas.every((o) => c.x + c.largura <= o.x || o.x + o.largura <= c.x
+          || c.y + c.altura <= o.y || o.y + o.altura <= c.y));
+      if (!caixa) continue;
+      ocupadas.push(caixa);
+      ctx.fillText(ds.rotulo, caixa.x + 4, caixa.y + altura / 2);
+    }
     ctx.restore();
   },
 };
@@ -286,10 +336,10 @@ function telaDetalhe(r) {
 }
 function telaComparar(r) {
   titulo("Comparar sub-regiões");
-  // ?s= presente (mesmo vazio) manda; sem ?s= (link do menu) usa a seleção atual ou, na primeira vez, o padrão
-  const chaves = (r.q.has("s") ? (r.q.get("s") || "").split(",") : estado.selecao.size ? [...estado.selecao] : top5Risco().map((y) => y.chave))
+  // Links e escolhas manuais têm prioridade sobre os exemplos do período.
+  const chaves = (r.q.has("s") ? r.q.get("s").split(",") : estado.selecao.size ? [...estado.selecao] : exemplosVariados())
     .filter((c) => reg(c)).slice(0, MAX_COMPARAR);
-  estado.selecao = new Set(chaves);
+  if (r.q.has("s")) estado.selecao = new Set(chaves);
   const vis = chaves.map((c) => reg(c)); vis.forEach((y) => cor(y.chave));
   const br = brasil();
   const ir = (cs) => (location.hash = `#/comparar?s=${cs.join(",")}`);
@@ -299,10 +349,11 @@ function telaComparar(r) {
     <div class="ferramentas">
       <div class="selecao">${vis.map((y) => `<span><i class="chip" style="background:${cor(y.chave)}"></i>${linkSub(y)}<button data-rm="${y.chave}" aria-label="Remover ${esc(y.nome)}">×</button></span>`).join("")}</div>
       <label>Adicionar <input id="add" class="busca-add" list="op-add" autocomplete="off" placeholder="${chaves.length >= MAX_COMPARAR ? "máximo de 5" : "digite cidade ou UF"}" ${chaves.length >= MAX_COMPARAR ? "disabled" : ""}><datalist id="op-add">${opcoes}</datalist></label>
+      <button id="exemplos">Exemplos variados</button>
       <button id="padrao">Maior risco por estado</button>
       ${chaves.length ? `<button id="limpar">Limpar</button>` : ""}
     </div>
-    ${chaves.length ? "" : `<p class="aviso">Nenhuma sub-região selecionada. Adicione pelo seletor acima, marque na lista de <a href="#/subregioes">Sub-regiões</a> ou use "Maior risco por estado".</p>`}
+    ${chaves.length ? "" : `<p class="aviso">Nenhuma sub-região selecionada. Adicione pelo seletor acima, marque na lista de <a href="#/subregioes">Sub-regiões</a> ou use "Exemplos variados".</p>`}
     <div class="kpis">${vis.map((y) => kpi(`<i class="chip" style="background:${cor(y.chave)}"></i>${esc(y.nome)} · ${y.regiao}`, fmt(y.risco), `risco ${sinal(y.risco - br.risco)} · oportunidade ${fmt(y.oport)} (${sinal(y.oport - br.oport)})`)).join("")}</div>
     <div class="grade dupla">
       ${painel("mapa", "Risco × oportunidade das selecionadas: a melhor aposta fica no canto superior esquerdo", true)}
@@ -313,6 +364,7 @@ function telaComparar(r) {
     </div>`);
   document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => ir(chaves.filter((c) => c !== b.dataset.rm))));
   $("add").oninput = (e) => { const y = livres.find((z) => z.nome === e.target.value); if (y) ir([...chaves, y.chave]); };
+  $("exemplos").onclick = () => ir(exemplosVariados());
   $("padrao").onclick = () => ir(top5Risco().map((y) => y.chave));
   if ($("limpar")) $("limpar").onclick = () => ir([]);
   if (!vis.length) return document.querySelector(".kpis").remove(), document.querySelector(".grade").remove();
