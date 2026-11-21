@@ -2,7 +2,7 @@ name: Publicar frontend
 
 on:
   push:
-    branches: [main]
+    branches: [fix/GJ00-63_deploy-inicial-pages]
     paths:
       - frontend/**
       - .github/workflows/pages.yml
