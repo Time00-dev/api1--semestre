@@ -1,32 +1,15 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Análise de crédito regional</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;600&display=swap">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="app">
-    <nav class="menu" aria-label="Navegação">
-      <a href="#/" data-rota="geral">Visão geral</a>
-      <a href="#/subregioes" data-rota="subregioes">Sub-regiões</a>
-      <a href="#/comparar" data-rota="comparar">Comparar</a>
-      <a href="#/indicadores" data-rota="indicadores">Indicadores</a>
-    </nav>
-    <div class="principal">
-      <header class="barra">
-        <h1 id="titulo"></h1>
-        <label class="periodo">Período <select id="f-periodo"></select></label>
-      </header>
-      <p id="aviso-dados" class="aviso" role="status" hidden>Modo demonstração com dados simulados.</p>
-      <main id="tela" aria-live="polite"></main>
-    </div>
-  </div>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explore e compare indicadores de crédito regional, inclusão e demografia. Projeto Time00.dev · FATEC.">
+    <meta name="theme-color" content="#19262d">
+    <link rel="icon" type="image/svg+xml" href="./marca.svg">
+    <title>Negado pelo Banco · Crédito regional</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
 </html>

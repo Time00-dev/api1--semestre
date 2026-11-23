@@ -23,25 +23,27 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - uses: actions/configure-pages@v5
-      - name: Configurar fonte de dados
+      - run: npm ci
+      - name: Compilar painel
         env:
-          PAGES_API_URL: ${{ vars.PAGES_API_URL }}
+          VITE_DATA_URL: ${{ vars.PAGES_API_URL }}
+          VITE_ANALYSIS_URL: ${{ vars.PAGES_ANALYSIS_URL }}
         run: |
-          python3 - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          config = {"pages": True, "apiUrl": os.environ["PAGES_API_URL"].strip()}
-          Path("frontend/config.js").write_text(
-              "const CONFIG_DADOS = " + json.dumps(config) + ";\n", encoding="utf-8"
-          )
-          PY
+          test -n "$VITE_DATA_URL" || { echo "Defina PAGES_API_URL com a URL HTTPS da API."; exit 1; }
+          npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend
+          path: frontend/dist
       - uses: actions/deploy-pages@v5
         id: deploy

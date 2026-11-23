@@ -46,3 +46,5 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+# Controle de cota da IA
+analise.sqlite3*

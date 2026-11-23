@@ -85,11 +85,43 @@ O projeto está organizado em três etapas principais.
 
 ---
 
-## Publicação do painel
+## Frontend e publicação
 
-O GitHub Actions publica a pasta `frontend/` no GitHub Pages. A publicação usa os dados simulados do projeto quando não há uma API configurada ou quando ela está indisponível ou sem resultados.
+O painel usa React, TypeScript, Vite e Chart.js. Com Node.js 24, rode na raiz:
 
-Para conectar a publicação ao Flask hospedado, configure a variável `PAGES_API_URL` no repositório com a URL HTTPS completa de `/api/sub-regioes` e execute o workflow **Publicar frontend**. O servidor da API precisa permitir via CORS a origem `https://time00-dev.github.io`.
+```powershell
+npm --prefix frontend ci
+npm --prefix frontend run build
+```
+
+O Flask serve o build em `frontend/dist/`. Em desenvolvimento, use `npm --prefix frontend run dev`
+com o Flask na porta 5000. Para conferir o frontend contra uma API de dados pública autorizada,
+defina `PREVIEW_DATA_URL` com a URL completa de `/api/sub-regioes` antes de iniciar o Vite.
+O servidor local faz o proxy somente para essa rota. `PREVIEW_FLASK_URL` permite usar outra porta
+para o restante da API.
+
+O GitHub Actions compila e publica o build no GitHub Pages. Configure `PAGES_API_URL` com a URL
+HTTPS completa de `/api/sub-regioes`. A API precisa aceitar origem `https://time00-dev.github.io`.
+Configure `PAGES_ANALYSIS_URL` com a URL pública de `/api/analise` quando esse recurso for ativado
+no servidor. Um erro da API de dados aparece explicitamente na interface.
+
+### Explicações com IA
+
+A rota Flask `POST /api/analise` consulta a competência e os territórios no banco antes de
+enviar à OpenAI somente os registros selecionados e a metodologia. Em prévia com a base
+publicada, configure também `ANALYSIS_DATA_URL` no Flask com a mesma URL de dados usada no Vite.
+
+- Configure `OPENAI_API_KEY` somente no servidor. Escolha o modelo em `OPENAI_ANALYSIS_MODEL`.
+- Defina `ANALYSIS_ACCESS_TOKEN` com um valor longo e aleatório para a equipe. É o código
+  solicitado na interface e deve ser separado tanto da chave OpenAI quanto do token de carga.
+- Ajuste `ANALYSIS_DAILY_LIMIT` e `ANALYSIS_MONTHLY_LIMIT` conforme os créditos disponíveis.
+  O contador compartilha a cota entre workers que usam o mesmo arquivo SQLite. Se houver mais
+  de um servidor, não habilite o endpoint sem uma cota compartilhada entre as instâncias.
+- Em publicação separada, defina `ANALYSIS_ALLOWED_ORIGIN` com a origem exata do frontend
+  e confira que o proxy preserva o CORS e não acrescenta um segundo cabeçalho de origem.
+
+O painel continua navegável quando a IA está desabilitada, indisponível ou sem cota. Os links
+para a ficha e a metodologia são montados pela aplicação.
 
 ## 🗄️ Dados
 
@@ -163,9 +195,11 @@ python backend/banco.py
 python backend/carga.py frontend/dados/mock_sub_regioes.json
 ```
 
-### 3. Iniciar o Flask
+### 3. Compilar o frontend e iniciar o Flask
 
 ```bash
+npm --prefix frontend ci
+npm --prefix frontend run build
 python -m flask --app backend/app run
 ```
 
