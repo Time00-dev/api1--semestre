@@ -35,3 +35,10 @@ Objetivo. Em segundos, encontrar a competência e o território, interpretar o r
 - Navegação, seleção de ano, troca de mês, retorno ao último mês, foco e Escape da nota, metodologia, ordenação, ficha, comparação e assistente exercitados.
 - Contraste dos pares principais de texto, ações e seleção acima de 4,5:1 nos dois temas. Impeccable executado na entrada da prévia.
 - O componente de IA usa a base real para o recorte. A prévia não tem credencial OpenAI e não gerou texto pelo provedor.
+
+## Breadcrumb, marca e paleta
+
+- [Primer Breadcrumbs](https://primer.style/product/components/breadcrumbs/) orienta o caminho compacto. Os níveis anteriores são links que preservam a competência. O último indica a página atual. A ficha mostra Panorama › Sub-regiões › território. Em tela estreita, o caminho fica abaixo do seletor de páginas.
+- O símbolo usa os pixels do [avatar oficial do Time00.dev](https://github.com/Time00-dev). O SVG incorpora o JPEG original servido pelo GitHub e aplica um recorte e uma máscara de opacidade para retirar a placa. A geometria e o centro ciano vêm da imagem fonte.
+- A paleta usa ciano e neutros. A dispersão diferencia as cinco regiões com formatos de pontos. As séries combinam formatos e padrões de linha para manter a leitura com duas famílias cromáticas.
+- Verificados no Chromium os cantos transparentes e o centro ciano do símbolo, o caminho da ficha, o retorno à lista preservando outubro de 2026 e a renderização em desktop e celular nos dois temas.

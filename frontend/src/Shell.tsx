@@ -1,12 +1,12 @@
-import { ArrowUpRight, BookOpenText, ChartNoAxesCombined, ChevronDown, Compass, GitCompareArrows, Map, Moon, Sun } from 'lucide-react';
+import { ArrowUpRight, BookOpenText, ChartNoAxesCombined, ChevronDown, ChevronRight, Compass, GitCompareArrows, Map, Moon, Sun } from 'lucide-react';
 import { useId, useRef } from 'react';
 import { pages, url, type Page } from './navigation';
 
 const repo = 'https://github.com/Time00-dev/api1--semestre';
 const icons = [Compass, Map, GitCompareArrows, ChartNoAxesCombined, BookOpenText];
 
-export function Shell({ page, period, pinned, theme, onTheme }: {
-  page: Page; period: string; pinned: string[]; theme: 'light' | 'dark'; onTheme: () => void;
+export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
+  page: Page; detailLabel?: string; period: string; pinned: string[]; theme: 'light' | 'dark'; onTheme: () => void;
 }) {
   const id = useId();
   const menu = useRef<HTMLDivElement>(null);
@@ -41,7 +41,15 @@ export function Shell({ page, period, pinned, theme, onTheme }: {
           <img src={import.meta.env.BASE_URL + 'time00.svg'} alt="" width="40" height="25" />
           <span>Negado pelo Banco</span>
         </a>
-        <span className="section-path">{pages[activeIndex][1]}{page === 'sub' && ' / Ficha'}</span>
+        {page === 'geral' ? <span className="section-path">Panorama</span> :
+          <nav className="breadcrumb" aria-label="Caminho da página">
+            <ol>
+              <li><a href={url('geral', period)}>Panorama</a></li>
+              {page === 'sub' && <li><ChevronRight size={13} aria-hidden="true" /><a href={url('subregioes', period)}>Sub-regiões</a></li>}
+              <li><ChevronRight size={13} aria-hidden="true" />
+                <span aria-current="page">{page === 'sub' ? detailLabel || 'Ficha' : pages[activeIndex][1]}</span></li>
+            </ol>
+          </nav>}
         <div className="mobile-navigation">
           <button ref={trigger} className="mobile-nav-trigger" popoverTarget={id}
             aria-label={'Selecionar página · ' + pages[activeIndex][1]}>

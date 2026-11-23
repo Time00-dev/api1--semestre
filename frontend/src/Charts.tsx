@@ -10,16 +10,18 @@ ChartJS.defaults.color = '#536371';
 
 const chartThemes = {
   light: {
-    colors: ['#137a80', '#426597', '#a65335', '#785c9f', '#886d0b'],
+    colors: ['#13768b', '#536c7c'],
     grid: '#e3e9ed', text: '#485d6a', selected: '#075e7b', guide: '#3298b5',
-    border: '#edf8fb', tooltip: '#173848',
+    tooltip: '#173848',
   },
   dark: {
-    colors: ['#68d1bf', '#81abef', '#f1a384', '#be9de3', '#dac36f'],
+    colors: ['#81d2e6', '#9aafbf'],
     grid: '#303e4b', text: '#bdcbd7', selected: '#6fdcf5', guide: '#58b9d3',
-    border: '#1b2631', tooltip: '#27485c',
+    tooltip: '#27485c',
   },
 };
+const shapes = ['circle', 'rect', 'triangle', 'rectRot', 'crossRot'] as const;
+const lineDashes = [[], [], [6, 3], [6, 3], [2, 3]];
 const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 const subscribe = (update: () => void) => {
   motionQuery.addEventListener('change', update);
@@ -36,13 +38,15 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
   const data = useMemo(() => ({
     datasets: regions.map((region, i) => {
       const items = rows.filter(row => row.regiao === region && row.risk != null && row.potential != null);
+      const color = palette.colors[i % palette.colors.length];
       return {
         label: region,
         data: items.map(row => ({ x: row.risk!, y: row.potential!, id: row.id, row })),
+        pointStyle: shapes[i],
         pointRadius: items.map(row => row.id === focused ? 7 : 4.25),
-        pointBackgroundColor: items.map(row => row.id === focused ? palette.selected : palette.colors[i] + 'c0'),
-        pointBorderColor: items.map(row => palette.border),
-        pointBorderWidth: items.map(row => row.id === focused ? 2 : 0.75),
+        pointBackgroundColor: items.map(row => row.id === focused ? palette.selected : color + 'ad'),
+        pointBorderColor: items.map(row => row.id === focused ? palette.selected : color),
+        pointBorderWidth: items.map(row => row.id === focused ? 2 : 1),
         pointHoverRadius: 7,
         pointHitRadius: 8,
       };
@@ -107,7 +111,9 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
       }} />
     </div>
     <div className="legend" aria-label="Regiões">
-      {regions.map((region, i) => <span key={region}><i style={{ backgroundColor: palette.colors[i] }} />{region}</span>)}
+      {regions.map((region, i) => <span key={region}>
+        <i className={'legend-marker ' + shapes[i]} style={{ backgroundColor: palette.colors[i % palette.colors.length] }} />{region}
+      </span>)}
     </div>
   </>;
 }
@@ -124,6 +130,7 @@ export function Trend({ periods, lines, label }: {
     datasets: lines.map((line, i) => ({
       label: line.label, data: line.values, borderColor: palette.colors[i % palette.colors.length],
       pointBackgroundColor: palette.colors[i % palette.colors.length], borderWidth: 2,
+      pointStyle: shapes[i % shapes.length], borderDash: lineDashes[i % lineDashes.length],
       pointRadius: 2.5, pointHoverRadius: 5, tension: 0.1, spanGaps: false,
     })),
   }} options={{

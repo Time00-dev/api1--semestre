@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowLeft, ArrowRight, ArrowUpRight,
+import { ArrowDown, ArrowUp, ArrowRight, ArrowUpRight,
   Database, GitCompareArrows,
   MessageSquareText, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -57,6 +57,7 @@ function App() {
   };
   const isMethod = route.page === 'metodologia';
   const ready = data && period;
+  const territory = route.page === 'sub' ? rows.find(row => row.id === route.id) : undefined;
   const methodSection = isMethod ? route.query.get('secao') : null;
   const routeId = route.page + '/' + route.id;
   const previousRoute = useRef(routeId);
@@ -75,7 +76,8 @@ function App() {
   return <ThemeContext.Provider value={theme}>
     <div className="workspace">
     <a href="#conteudo" className="skip" onClick={event => { event.preventDefault(); document.getElementById('conteudo')?.focus(); }}>Pular para o conteúdo</a>
-    <Shell page={route.page} period={period} pinned={pinnedRows} theme={theme} onTheme={toggleTheme} />
+    <Shell page={route.page} detailLabel={territory && geographic(territory)} period={period}
+      pinned={pinnedRows} theme={theme} onTheme={toggleTheme} />
 
     <main id="conteudo" tabIndex={-1} className="shell page">
       {route.page !== 'sub' && <div className="page-heading">
@@ -95,7 +97,7 @@ function App() {
           explain={() => active && openAnalysis([active])} />}
         {route.page === 'subregioes' && <Explorer key={period} rows={rows} period={period} pinned={pinned}
           toggle={togglePinned} />}
-        {route.page === 'sub' && <Detail row={rows.find(row => row.id === route.id)} data={data} period={period}
+        {route.page === 'sub' && <Detail row={territory} data={data} period={period}
           months={months} changePeriod={changePeriod} explain={openAnalysis} rows={rows} />}
         {route.page === 'comparar' && <Compare key={period + route.query.get('s')} rows={rows} data={data}
           period={period} ids={route.query.has('s') ? (route.query.get('s') || '').split(',') : pinnedRows}
@@ -231,8 +233,8 @@ function Detail({ row, data, period, months, changePeriod, explain, rows }: {
   const ranked = rank(rows).length;
   const prev = history.at(-2)?.row;
   return <>
-    <div className="page-heading"><div><a className="text-link back" href={url('subregioes', period)}><ArrowLeft size={15} /> Sub-regiões</a>
-      <h1>{geographic(row)}</h1><p>{row.name !== geographic(row) ? row.name + ' · ' : ''}{row.regiao} · prefixo de CEP</p></div>
+    <div className="page-heading"><div><h1>{geographic(row)}</h1>
+      <p>{row.name !== geographic(row) ? row.name + ' · ' : ''}{row.regiao} · prefixo de CEP</p></div>
       <Period months={months} value={period} set={changePeriod} /></div>
     <div className="overview-strip">
       <div><span>Score publicado <small>/ 100</small></span><strong>{number(row.score)}</strong></div>
