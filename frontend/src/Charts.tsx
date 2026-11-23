@@ -11,12 +11,12 @@ ChartJS.defaults.color = '#536371';
 const chartThemes = {
   light: {
     colors: ['#13768b', '#536c7c'],
-    grid: '#e3e9ed', text: '#485d6a', selected: '#075e7b', guide: '#3298b5',
+    grid: '#e3e9ed', axis: '#aab7c0', text: '#485d6a', selected: '#075e7b', guide: '#25839d',
     tooltip: '#173848',
   },
   dark: {
     colors: ['#81d2e6', '#9aafbf'],
-    grid: '#303e4b', text: '#bdcbd7', selected: '#6fdcf5', guide: '#58b9d3',
+    grid: '#303e4b', axis: '#607180', text: '#bdcbd7', selected: '#8edcf0', guide: '#71cce2',
     tooltip: '#27485c',
   },
 };
@@ -38,12 +38,12 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
   const data = useMemo(() => ({
     datasets: regions.map((region, i) => {
       const items = rows.filter(row => row.regiao === region && row.risk != null && row.potential != null);
-      const color = palette.colors[i % palette.colors.length];
+      const color = palette.colors[1];
       return {
         label: region,
         data: items.map(row => ({ x: row.risk!, y: row.potential!, id: row.id, row })),
         pointStyle: shapes[i],
-        pointRadius: items.map(row => row.id === focused ? 7 : 4.25),
+        pointRadius: items.map(row => row.id === focused ? 5.5 : 4.25),
         pointBackgroundColor: items.map(row => row.id === focused ? palette.selected : color + 'ad'),
         pointBorderColor: items.map(row => row.id === focused ? palette.selected : color),
         pointBorderWidth: items.map(row => row.id === focused ? 2 : 1),
@@ -53,17 +53,20 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
     }),
   }), [rows, focused, palette]);
 
-  const selection = useRef({ data, focused, palette });
-  selection.current = { data, focused, palette };
+  const rowAtFocus = rows.find(row => row.id === focused);
+  const selection = useRef({ row: rowAtFocus, palette });
+  selection.current = { row: rowAtFocus, palette };
+  function selectedCoordinates(chart: ChartJS<'scatter'>) {
+    const row = selection.current.row;
+    if (row?.risk == null || row.potential == null) return null;
+    return { x: chart.scales.x.getPixelForValue(row.risk), y: chart.scales.y.getPixelForValue(row.potential) };
+  }
   const guide: Plugin<'scatter'> = {
     id: 'selectedTerritory',
     beforeDatasetsDraw(chart) {
-      const datasets = selection.current.data.datasets;
-      const index = datasets.findIndex(dataset => dataset.data.some(item => item.id === selection.current.focused));
-      if (index < 0) return;
-      const item = datasets[index].data.find(point => point.id === selection.current.focused)!;
-      const x = chart.scales.x.getPixelForValue(item.x);
-      const y = chart.scales.y.getPixelForValue(item.y);
+      const point = selectedCoordinates(chart);
+      if (!point) return;
+      const { x, y } = point;
       const { ctx, chartArea } = chart;
       ctx.save();
       ctx.strokeStyle = selection.current.palette.guide + '95';
@@ -75,12 +78,25 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
       ctx.stroke();
       ctx.restore();
     },
+    afterDatasetsDraw(chart) {
+      const point = selectedCoordinates(chart);
+      if (!point) return;
+      const { ctx } = chart;
+      ctx.save();
+      ctx.strokeStyle = selection.current.palette.selected;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 10, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    },
   };
   return <>
     <div className="plot scatter" onMouseLeave={() => onPreview('')}><Scatter aria-label="Dispersão de risco e oportunidade. A tabela de ranking permite selecionar por teclado."
       data={data} plugins={[guide]}
       options={{
         maintainAspectRatio: false, animation: reduced ? false : { duration: 160 },
+        layout: { padding: { top: 10, right: 12 } },
         interaction: { mode: 'nearest', intersect: true },
         onClick: (_, active) => {
           const item = active[0];
@@ -93,9 +109,9 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
           onPreview(item ? data.datasets[item.datasetIndex].data[item.index].id : '');
         },
         scales: {
-          x: { min: 1, max: 5, ticks: { stepSize: 1, color: palette.text }, grid: { color: palette.grid }, border: { color: palette.grid },
+          x: { min: 1, max: 5, ticks: { stepSize: 1, color: palette.text }, grid: { color: palette.grid, drawTicks: false }, border: { color: palette.axis },
             title: { display: true, color: palette.text, text: 'Risco / 5' } },
-          y: { min: 1, max: 5, ticks: { stepSize: 1, color: palette.text }, grid: { color: palette.grid }, border: { color: palette.grid },
+          y: { min: 1, max: 5, ticks: { stepSize: 1, color: palette.text }, grid: { color: palette.grid, drawTicks: false }, border: { color: palette.axis },
             title: { display: true, color: palette.text, text: 'Oportunidade / 5' } },
         },
         plugins: {
@@ -115,7 +131,7 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
     </div>
     <div className="legend" aria-label="Regiões">
       {regions.map((region, i) => <span key={region}>
-        <i className={'legend-marker ' + shapes[i]} style={{ backgroundColor: palette.colors[i % palette.colors.length] }} />{region}
+        <i className={'legend-marker ' + shapes[i]} style={{ backgroundColor: palette.colors[1] }} />{region}
       </span>)}
     </div>
   </>;
@@ -138,6 +154,7 @@ export function Trend({ periods, lines, label }: {
     })),
   }} options={{
     maintainAspectRatio: false, animation: reduced ? false : { duration: 160 },
+        layout: { padding: { top: 10, right: 12 } },
     scales: {
       x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: palette.text }, border: { color: palette.grid } },
       y: { grid: { color: palette.grid }, ticks: { color: palette.text }, border: { color: palette.grid } },

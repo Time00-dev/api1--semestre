@@ -57,3 +57,12 @@ A ficha agora exibe o score publicado como primeira informação, com faixa, pos
 O botão de compartilhamento abre um QR Code com o endereço público do Pages. O arquivo é estático e pode ser baixado para slides. Os códigos nas capturas de desktop e celular foram decodificados e conferidos. O endereço segue mostrando a versão ativa do Pages até que esta revisão seja publicada.
 
 Referências: [Primer Dialog](https://primer.style/product/components/dialog/) e [Primer Data Visualization](https://primer.style/product/ui-patterns/data-visualization/).
+
+
+## Panorama
+
+O Panorama usa uma faixa de métricas e uma área única de exploração. No desktop, o gráfico fica ao lado do resultado selecionado e do ranking. No celular, o resultado e a ficha aparecem antes do gráfico, seguidos do ranking. O score selecionado tem um único destaque. A linha correspondente no ranking indica seleção com um ícone.
+
+A ação primária abre a ficha. Comparar e Explicar com IA ficam no mesmo resumo. O gráfico conserva a escala de 1 a 5 em ambos os eixos, distingue regiões pela forma dos pontos e usa ciano para o ponto em foco. A tabela do gráfico também permite selecionar uma sub-região.
+
+Referências: [Impeccable](https://github.com/pbakaus/impeccable) e [Primer Data Visualization](https://primer.style/product/ui-patterns/data-visualization/).

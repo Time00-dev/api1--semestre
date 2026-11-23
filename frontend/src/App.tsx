@@ -1,18 +1,18 @@
 import { ArrowRight, ArrowUpRight, Database, X } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { BaseStyles, Button, ButtonGroup, FormControl, SegmentedControl, Select, SkeletonBox } from '@primer/react';
+import { BaseStyles, Button, ButtonGroup, FormControl, Select, SkeletonBox } from '@primer/react';
 import { ThemeProvider } from '@primer/react/next';
-import { ArrowDownIcon, ArrowRightIcon, CommentDiscussionIcon, GitCompareIcon, ListOrderedIcon } from '@primer/octicons-react';
+import { ArrowDownIcon, CommentDiscussionIcon } from '@primer/octicons-react';
 import { geographic, indicators, loadDataWithRetry, mean, month, note, number, potentialKeys,
   previousObservation, rank, regions, riskKeys, scoreDifference, signedNumber, type Dataset, type Indicator, type Row } from './data';
 import { compareLink, url, useRoute } from './navigation';
 import { MethodLink, Period } from './Controls';
 import { Shell } from './Shell';
+import { Overview } from './Overview';
 import { ThemeContext, useThemePreference } from './theme';
 
 const Explorer = lazy(() => import('./Explorer').then(module => ({ default: module.Explorer })));
 const Assistant = lazy(() => import('./Assistant').then(module => ({ default: module.Assistant })));
-const RiskPlot = lazy(() => import('./Charts').then(module => ({ default: module.RiskPlot })));
 const Trend = lazy(() => import('./Charts').then(module => ({ default: module.Trend })));
 const TerritoryDetail = lazy(() => import('./TerritoryDetail').then(module => ({ default: module.TerritoryDetail })));
 const MetricHistory = lazy(() => import('./MetricHistory').then(module => ({ default: module.MetricHistory })));
@@ -83,7 +83,7 @@ function App() {
       pinned={pinnedRows} theme={theme} onTheme={toggleTheme} />
 
     <main id="conteudo" tabIndex={-1} className="shell page">
-      {route.page !== 'sub' && <div className="page-heading">
+      {route.page !== 'sub' && <div className={route.page === 'geral' ? 'page-heading overview-heading' : 'page-heading'}>
         <div><h1>{({
           geral: 'Crédito por sub-região', subregioes: 'Sub-regiões',
           comparar: 'Comparar sub-regiões', indicadores: 'Indicadores', metodologia: 'Fontes e metodologia',
@@ -118,74 +118,6 @@ function App() {
     </BaseStyles>
     </ThemeProvider>
   </ThemeContext.Provider>;
-}
-
-function Overview({ rows, ranking, active, period, select, explain }: {
-  rows: Row[]; ranking: Row[]; active?: Row; period: string; select: (id: string) => void; explain: () => void;
-}) {
-  const [mode, setMode] = useState<'gráfico' | 'tabela'>('gráfico');
-  const [preview, setPreview] = useState('');
-  const inspected = (preview && rows.find(row => row.id === preview)) || active;
-  const displayed = ranking.length ? ranking : rows;
-  const shown = active && !displayed.slice(0, 6).includes(active) ? [...displayed.slice(0, 5), active] : displayed.slice(0, 6);
-  return <>
-    <dl className="metric-bar">
-      <div><dt>Sub-regiões</dt><dd>{number(rows.length, 0)}</dd></div>
-      <div><dt>Unidades da Federação</dt><dd>{number(new Set(rows.map(row => row.uf)).size, 0)}</dd></div>
-      <div><dt>Risco médio <small>/ 5</small></dt><dd>{number(mean(rows.map(row => row.risk)))}</dd></div>
-      <div><dt>Oportunidade média <small>/ 5</small></dt><dd>{number(mean(rows.map(row => row.potential)))}</dd></div>
-    </dl>
-    <div className="overview">
-      <section className="panel chart-panel">
-        <div className="panel-heading">
-          <div className="heading-inline"><h2>Risco × oportunidade</h2>
-            {rows.some(row => row.legacyRisk) && <MethodLink period={period} />}</div>
-          <SegmentedControl aria-label="Formato da visualização" size="small" onChange={index => setMode(index === 0 ? 'gráfico' : 'tabela')}>
-            <SegmentedControl.Button selected={mode === 'gráfico'}>Gráfico</SegmentedControl.Button>
-            <SegmentedControl.Button selected={mode === 'tabela'}>Tabela</SegmentedControl.Button>
-          </SegmentedControl>
-        </div>
-        {mode === 'gráfico' ? <RiskPlot rows={rows} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
-          <div className="table-scroll plot-table"><table><thead><tr><th>Sub-região</th><th className="numeric">Risco</th><th className="numeric">Oportunidade</th><th className="numeric">Score / 100</th></tr></thead><tbody>
-            {rows.map(row => <tr key={row.id} className={row.id === active?.id ? 'current-row' : ''}>
-              <th scope="row"><button className="table-link" onClick={() => select(row.id)}>{geographic(row)}</button></th>
-              <td className="numeric">{number(row.risk)}</td><td className="numeric">{number(row.potential)}</td><td className="numeric">{number(row.score)}</td></tr>)}
-          </tbody></table></div>}
-        {inspected && <div className="chart-caption">
-          <div className="chart-readout"><span className="selected-point" /> <div><strong>{geographic(inspected)}</strong>
-            <span>Risco {number(inspected.risk)} · Oportunidade {number(inspected.potential)}</span></div></div>
-          {active && <Button as="a" className="chart-ficha result-sheet" variant="primary" size="large" trailingVisual={ArrowRightIcon}
-            href={url('sub', period, active.id)}>Abrir ficha</Button>}
-        </div>}
-      </section>
-      <section className="panel ranking-panel">
-        <div className="panel-heading"><div><h2>Ranking</h2><p>Score de oportunidade / 100</p></div>
-          <Button as="a" size="small" leadingVisual={ListOrderedIcon} href={url('subregioes', period)}>Ranking completo</Button></div>
-        {!ranking.length && <p className="inline-note">Sem ranking para esta competência.</p>}
-        <div className="ranking-list" aria-label="Sub-regiões destacadas" onMouseLeave={() => setPreview('')}>
-          {shown.map(row => <button key={row.id}
-            className={'rank-row' + (active?.id === row.id ? ' selected' : '') + (preview === row.id ? ' preview' : '')}
-            aria-pressed={active?.id === row.id} onMouseEnter={() => setPreview(row.id)} onFocus={() => setPreview(row.id)} onBlur={() => setPreview('')}
-            onClick={() => { setPreview(''); select(row.id); }}>
-            <span className="position">{row.ranking == null ? '—' : row.ranking + 'º'}</span>
-            <strong>{geographic(row)}</strong><strong className="rank-score">{number(row.score)}</strong>
-          </button>)}
-        </div>
-        {active && <div className="ranking-selection">
-          <div className="ranking-selection-head">
-            <div><h3>{geographic(active)}</h3><p>{active.faixa || active.regiao}</p></div>
-            <div className="selected-score"><strong>{number(active.score)}</strong><span>Score / 100</span></div>
-          </div>
-          <div className="result-actions">
-            <Button as="a" className="ranking-ficha result-sheet" variant="primary" trailingVisual={ArrowRightIcon}
-              href={url('sub', period, active.id)}>Abrir ficha</Button>
-            <Button leadingVisual={CommentDiscussionIcon} onClick={explain}>Explicar com IA</Button>
-            <Button as="a" href={compareLink(period, [active.id])}>Comparar</Button>
-          </div>
-        </div>}
-      </section>
-    </div>
-  </>;
 }
 
 function Compare({ rows, data, period, ids, explain }: {
