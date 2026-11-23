@@ -112,13 +112,19 @@ enviar à OpenAI somente os registros selecionados e a metodologia. Em prévia c
 publicada, configure também `ANALYSIS_DATA_URL` no Flask com a mesma URL de dados usada no Vite.
 
 - Configure `OPENAI_API_KEY` somente no servidor. Escolha o modelo em `OPENAI_ANALYSIS_MODEL`.
-- Defina `ANALYSIS_ACCESS_TOKEN` com um valor longo e aleatório para a equipe. É o código
-  solicitado na interface e deve ser separado tanto da chave OpenAI quanto do token de carga.
+- Defina `ANALYSIS_ACCESS_TOKEN` com um valor aleatório de pelo menos 32 caracteres, separado
+  da chave OpenAI e do token de carga. Por exemplo, gere com
+  `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Esse é o código solicitado na interface.
 - Ajuste `ANALYSIS_DAILY_LIMIT` e `ANALYSIS_MONTHLY_LIMIT` conforme os créditos disponíveis.
   O contador compartilha a cota entre workers que usam o mesmo arquivo SQLite. Se houver mais
   de um servidor, não habilite o endpoint sem uma cota compartilhada entre as instâncias.
 - Em publicação separada, defina `ANALYSIS_ALLOWED_ORIGIN` com a origem exata do frontend
   e confira que o proxy preserva o CORS e não acrescenta um segundo cabeçalho de origem.
+
+O build injeta somente as URLs públicas de dados e de análise. Antes do upload, o workflow
+verifica que o artefato é estático e procura sinais de credenciais ou acesso direto à OpenAI.
+O Nginx deve encaminhar apenas as rotas necessárias. Antes de publicar a rota de IA, configure
+limites no proxy e preserve um diretório dedicado gravável pelo serviço para a cota SQLite.
 
 O painel continua navegável quando a IA está desabilitada, indisponível ou sem cota. Os links
 para a ficha e a metodologia são montados pela aplicação.

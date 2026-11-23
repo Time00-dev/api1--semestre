@@ -10,7 +10,8 @@ import app
 MES = "202610"
 REGIAO = "RJ-20"
 CONSULTA = {"mes": MES, "sub_regioes": [REGIAO], "pergunta": "Como interpretar o score?"}
-CABECALHO = {"Authorization": "Bearer codigo-de-teste"}
+CODIGO_TESTE = "codigo-local-para-testes-de-integracao"
+CABECALHO = {"Authorization": "Bearer " + CODIGO_TESTE}
 BASE = {
     "eixo_i": [{"ano_mes": MES, "uf": "RJ", "sub_regiao": "20", "fragilidadeRenda": 1, "score": 83.14, "ranking": 1}],
     "eixo_ii": [{"ano_mes": MES, "uf": "RJ", "sub_regiao": "20", "maturidadePix": 3.96}],
@@ -22,7 +23,7 @@ class TestAnalise(unittest.TestCase):
         self.cliente = app.app.test_client()
         pasta = self.enterContext(tempfile.TemporaryDirectory())
         self.enterContext(mock.patch.dict(os.environ, {
-            "OPENAI_API_KEY": "chave-de-teste", "ANALYSIS_ACCESS_TOKEN": "codigo-de-teste",
+            "OPENAI_API_KEY": "chave-de-teste", "ANALYSIS_ACCESS_TOKEN": CODIGO_TESTE,
             "ANALYSIS_QUOTA_PATH": str(Path(pasta) / "cota.sqlite3"), "ANALYSIS_DAILY_LIMIT": "1",
             "ANALYSIS_MONTHLY_LIMIT": "1", "ANALYSIS_ALLOWED_ORIGIN": "https://painel.example",
         }))
@@ -61,6 +62,17 @@ class TestAnalise(unittest.TestCase):
     def test_preflight_permite_apenas_origem_configurada(self):
         for origem in ("https://painel.example", "https://outra.example"):
             resposta = self.cliente.options("/api/analise", headers={"Origin": origem})
-            self.assertEqual(resposta.status_code, 204)
+            self.assertEqual(resposta.status_code, 204 if origem == "https://painel.example" else 403)
             self.assertEqual(resposta.headers.get("Access-Control-Allow-Origin"),
                              origem if origem == "https://painel.example" else None)
+
+    def test_post_rejeita_origem_antes_de_consultar_a_base(self):
+        with mock.patch.object(analise, "buscar_base") as consultar:
+            resposta = self.post(headers={**CABECALHO, "Origin": "https://outra.example"})
+            self.assertEqual(resposta.status_code, 403)
+            consultar.assert_not_called()
+
+    def test_recusa_codigo_fraco_ou_reuso_da_chave_da_openai(self):
+        for ajustes in ({"ANALYSIS_ACCESS_TOKEN": "curto"}, {"OPENAI_API_KEY": CODIGO_TESTE}):
+            with mock.patch.dict(os.environ, ajustes):
+                self.assertEqual(self.post().status_code, 503)

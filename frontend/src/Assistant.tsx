@@ -1,4 +1,6 @@
-import { ArrowUpRight, BookOpen, Send, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen } from 'lucide-react';
+import { Button, FormControl, IconButton, Textarea, TextInput } from '@primer/react';
+import { PaperAirplaneIcon, XIcon } from '@primer/octicons-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { geographic, month, number, rank, type Row } from './data';
 import { url } from './navigation';
@@ -14,7 +16,7 @@ export function Assistant({ rows, period, allRows, close }: {
   const [reply, setReply] = useState<Answer>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  const [access, setAccess] = useState(sessionStorage.getItem('analise-acesso') || '');
+  const [access, setAccess] = useState('');
   useEffect(() => {
     const element = dialog.current;
     element?.showModal();
@@ -24,6 +26,10 @@ export function Assistant({ rows, period, allRows, close }: {
   async function ask(event: FormEvent) {
     event.preventDefault();
     if (!question.trim() || pending || !rows.length) return;
+    if (import.meta.env.VITE_DATA_URL && !import.meta.env.VITE_ANALYSIS_URL) {
+      setError('A geração por IA ainda não foi habilitada nesta publicação.');
+      return;
+    }
     setError('');
     setReply(undefined);
     setPending(true);
@@ -51,7 +57,7 @@ export function Assistant({ rows, period, allRows, close }: {
     aria-labelledby="assistant-title">
     <section className="assistant-content">
       <header><h2 id="assistant-title">{rows.length === 1 ? 'Explicar score' : 'Explicar diferenças'}</h2>
-        <button type="button" className="icon-button" aria-label="Fechar análise" onClick={close}><X size={22} /></button></header>
+        <IconButton icon={XIcon} aria-label="Fechar análise" onClick={close} /></header>
       <div className="heading-inline"><p className="muted">{month(period)} · {rows.length === 1 ? geographic(rows[0]) : rows.length + ' sub-regiões'}</p>{rows.some(row => row.legacyRisk) && <MethodLink period={period} onNavigate={close} />}</div>
       <div className="assistant-records">
         <h3>Na análise</h3>
@@ -61,14 +67,17 @@ export function Assistant({ rows, period, allRows, close }: {
         </a>)}
       </div>
       <form onSubmit={ask}>
-        <label htmlFor="question">Pergunta</label>
-        <textarea id="question" maxLength={500} rows={3} value={question} onChange={event => setQuestion(event.target.value)} required />
+        <FormControl required>
+          <FormControl.Label>Pergunta</FormControl.Label>
+          <Textarea block maxLength={500} rows={3} value={question} onChange={event => setQuestion(event.target.value)} />
+        </FormControl>
         <details className="ai-access">
           <summary>Código de acesso da equipe</summary>
-          <input type="password" aria-label="Código de acesso da equipe" value={access} autoComplete="off"
-            onChange={event => { setAccess(event.target.value); sessionStorage.setItem('analise-acesso', event.target.value); }} />
+          <TextInput block type="password" aria-label="Código de acesso da equipe" value={access} autoComplete="off"
+            onChange={event => setAccess(event.target.value)} />
         </details>
-        <button className="button primary" type="submit" disabled={pending || !question.trim()}><Send size={15} />{pending ? 'Consultando a base…' : 'Gerar explicação'}</button>
+        <Button variant="primary" type="submit" leadingVisual={PaperAirplaneIcon} loading={pending} loadingAnnouncement="Consultando a base"
+          disabled={!question.trim()}>Gerar explicação</Button>
       </form>
       <div aria-live="polite">
         {error && <p className="notice ai-error">{error}</p>}

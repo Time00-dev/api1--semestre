@@ -22,3 +22,5 @@ export function url(page: Page, m?: string, id?: string, additional?: Record<str
   const path = page === 'geral' ? '' : page + (id ? '/' + encodeURIComponent(id) : '');
   return '#/' + path + (query.size ? '?' + query.toString() : '');
 }
+
+export const compareLink = (period: string, ids: string[]) => url('comparar', period, undefined, { s: ids.join(',') });

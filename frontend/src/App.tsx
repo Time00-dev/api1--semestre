@@ -1,20 +1,22 @@
-import { ArrowDown, ArrowUp, ArrowRight, ArrowUpRight,
-  Database, GitCompareArrows,
-  MessageSquareText, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Assistant } from './Assistant';
-import { RiskPlot, Trend } from './Charts';
+import { ArrowRight, ArrowUpRight, Database, X } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { BaseStyles, Button, ButtonGroup, FormControl, SegmentedControl, Select, SkeletonBox } from '@primer/react';
+import { ThemeProvider } from '@primer/react/next';
+import { ArrowDownIcon, ArrowRightIcon, CommentDiscussionIcon, GitCompareIcon, ListOrderedIcon } from '@primer/octicons-react';
 import { geographic, indicators, loadDataWithRetry, mean, month, note, number, potentialKeys,
   rank, regions, riskKeys, series, type Dataset, type Indicator, type Row } from './data';
-import { url, useRoute } from './navigation';
+import { compareLink, url, useRoute } from './navigation';
 import { MethodLink, Period } from './Controls';
 import { Shell } from './Shell';
 import { ThemeContext, useThemePreference } from './theme';
 
-const norm = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+const Explorer = lazy(() => import('./Explorer').then(module => ({ default: module.Explorer })));
+const Assistant = lazy(() => import('./Assistant').then(module => ({ default: module.Assistant })));
+const RiskPlot = lazy(() => import('./Charts').then(module => ({ default: module.RiskPlot })));
+const Trend = lazy(() => import('./Charts').then(module => ({ default: module.Trend })));
+
 const repo = 'https://github.com/Time00-dev/api1--semestre';
 const notebook = repo + '/blob/main/backend/GJ00_46.ipynb';
-const compareLink = (m: string, ids: string[]) => url('comparar', m, undefined, { s: ids.join(',') });
 const diff = (a?: number | null, b?: number | null) => a == null || b == null ? null : a - b;
 const change = (d: number | null) => d == null ? '—' : (d > 0 ? '+' : '') + number(d);
 
@@ -74,7 +76,8 @@ function App() {
   }, [methodSection, routeId]);
 
   return <ThemeContext.Provider value={theme}>
-    <div className="workspace">
+    <ThemeProvider contextOnly colorMode={theme} dayScheme="light" nightScheme="dark_dimmed">
+    <BaseStyles className="workspace">
     <a href="#conteudo" className="skip" onClick={event => { event.preventDefault(); document.getElementById('conteudo')?.focus(); }}>Pular para o conteúdo</a>
     <Shell page={route.page} detailLabel={territory && geographic(territory)} period={period}
       pinned={pinnedRows} theme={theme} onTheme={toggleTheme} />
@@ -89,14 +92,16 @@ function App() {
         {ready && !isMethod && <Period months={months} value={period} set={changePeriod} />}
       </div>}
       {isMethod ? <Method /> : error ? <div className="empty"><Database size={28} /><h2>Dados indisponíveis</h2><p>{error}</p>
-        <button className="button primary" onClick={() => { setError(''); retry(value => value + 1); }}>Tentar novamente</button>
-      </div> : !data ? <div className="empty" role="status"><span className="loader" />Carregando a base publicada…</div>
+        <Button variant="primary" onClick={() => { setError(''); retry(value => value + 1); }}>Tentar novamente</Button>
+      </div> : !data ? <div className="loading-surface" role="status" aria-label="Carregando a base publicada">
+        <SkeletonBox width="100%" height={62} /><SkeletonBox width="100%" height={370} />
+      </div>
       : !period ? <div className="empty"><h2>Base sem resultados</h2><p>O servidor ainda não forneceu resultados para consultar.</p></div>
-      : <>
+      : <Suspense fallback={<SkeletonBox width="100%" height={345} />}>
         {route.page === 'geral' && <Overview rows={rows} ranking={ranking} active={active} period={period} select={select}
           explain={() => active && openAnalysis([active])} />}
-        {route.page === 'subregioes' && <Explorer key={period} rows={rows} period={period} pinned={pinned}
-          toggle={togglePinned} />}
+        {route.page === 'subregioes' && <Explorer key={period} rows={rows} period={period} queryParams={route.query}
+          pinned={pinned} toggle={togglePinned} clearSelection={() => setPinned([])} />}
         {route.page === 'sub' && <Detail row={territory} data={data} period={period}
           months={months} changePeriod={changePeriod} explain={openAnalysis} rows={rows} />}
         {route.page === 'comparar' && <Compare key={period + route.query.get('s')} rows={rows} data={data}
@@ -104,13 +109,14 @@ function App() {
           explain={openAnalysis} />}
         {route.page === 'indicadores' && <Indicators rows={rows} data={data} period={period}
           initial={route.query.get('i')} />}
-      </>}
+      </Suspense>}
     </main>
     <footer className="site-footer"><div className="shell"><span>Time00.dev · FATEC · Aprendizagem por Projetos Integrados</span>
       <a href={url('metodologia', period)}>Fontes e metodologia <ArrowUpRight size={13} /></a></div></footer>
-    {analysis && <Assistant key={analysis.period + analysis.rows.map(row => row.id).join(',')}
-      allRows={rows} rows={analysis.rows} period={analysis.period} close={() => setAnalysis(undefined)} />}
-    </div>
+    {analysis && <Suspense fallback={null}><Assistant key={analysis.period + analysis.rows.map(row => row.id).join(',')}
+      allRows={rows} rows={analysis.rows} period={analysis.period} close={() => setAnalysis(undefined)} /></Suspense>}
+    </BaseStyles>
+    </ThemeProvider>
   </ThemeContext.Provider>;
 }
 
@@ -134,9 +140,10 @@ function Overview({ rows, ranking, active, period, select, explain }: {
         <div className="panel-heading">
           <div className="heading-inline"><h2>Risco × oportunidade</h2>
             {rows.some(row => row.legacyRisk) && <MethodLink period={period} />}</div>
-          <div className="segmented" aria-label="Formato da visualização">
-            {(['gráfico', 'tabela'] as const).map(label => <button aria-pressed={mode === label} key={label} onClick={() => setMode(label)}>{label}</button>)}
-          </div>
+          <SegmentedControl aria-label="Formato da visualização" size="small" onChange={index => setMode(index === 0 ? 'gráfico' : 'tabela')}>
+            <SegmentedControl.Button selected={mode === 'gráfico'}>Gráfico</SegmentedControl.Button>
+            <SegmentedControl.Button selected={mode === 'tabela'}>Tabela</SegmentedControl.Button>
+          </SegmentedControl>
         </div>
         {mode === 'gráfico' ? <RiskPlot rows={rows} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
           <div className="table-scroll plot-table"><table><thead><tr><th>Sub-região</th><th>Risco</th><th>Oportunidade</th></tr></thead><tbody>
@@ -144,12 +151,16 @@ function Overview({ rows, ranking, active, period, select, explain }: {
               <th scope="row"><button className="table-link" onClick={() => select(row.id)}>{geographic(row)}</button></th>
               <td>{number(row.risk)}</td><td>{number(row.potential)}</td></tr>)}
           </tbody></table></div>}
-        {inspected && <div className="chart-caption"><span className="selected-point" /> <strong>{geographic(inspected)}</strong>
-          <span>Risco {number(inspected.risk)} · Oportunidade {number(inspected.potential)}</span></div>}
+        {inspected && <div className="chart-caption">
+          <div className="chart-readout"><span className="selected-point" /> <div><strong>{geographic(inspected)}</strong>
+            <span>Risco {number(inspected.risk)} · Oportunidade {number(inspected.potential)}</span></div></div>
+          {active && <Button as="a" className="chart-ficha result-sheet" variant="primary" size="large" trailingVisual={ArrowRightIcon}
+            href={url('sub', period, active.id)}>Abrir ficha</Button>}
+        </div>}
       </section>
       <section className="panel ranking-panel">
         <div className="panel-heading"><div><h2>Ranking</h2><p>Score de oportunidade / 100</p></div>
-          <a className="text-link" href={url('subregioes', period)}>Ver ranking <ArrowUpRight size={15} /></a></div>
+          <Button as="a" size="small" leadingVisual={ListOrderedIcon} href={url('subregioes', period)}>Ranking completo</Button></div>
         {!ranking.length && <p className="inline-note">Sem ranking para esta competência.</p>}
         <div className="ranking-list" aria-label="Sub-regiões destacadas" onMouseLeave={() => setPreview('')}>
           {shown.map(row => <button key={row.id}
@@ -161,66 +172,17 @@ function Overview({ rows, ranking, active, period, select, explain }: {
           </button>)}
         </div>
         {active && <div className="ranking-selection">
-          <div className="ranking-selection-head"><div><h3>{geographic(active)}</h3><p>{active.faixa || active.regiao}</p></div>
-            <a className="text-link result-sheet" href={url('sub', period, active.id)}>Ficha <ArrowRight size={15} /></a></div>
+          <div className="ranking-selection-head"><div><h3>{geographic(active)}</h3><p>{active.faixa || active.regiao}</p></div></div>
           <div className="result-actions">
-            <button className="button primary" onClick={explain}><MessageSquareText size={16} /> Explicar com IA</button>
-            <a className="button subtle" href={compareLink(period, [active.id])}>Comparar</a>
+            <Button as="a" className="ranking-ficha result-sheet" variant="primary" trailingVisual={ArrowRightIcon}
+              href={url('sub', period, active.id)}>Abrir ficha</Button>
+            <Button leadingVisual={CommentDiscussionIcon} onClick={explain}>Explicar com IA</Button>
+            <Button as="a" href={compareLink(period, [active.id])}>Comparar</Button>
           </div>
         </div>}
       </section>
     </div>
   </>;
-}
-
-type SortKey = 'territory' | 'ranking' | 'score' | 'risk' | 'potential';
-
-function Explorer({ rows, period, pinned, toggle }: {
-  rows: Row[]; period: string; pinned: string[]; toggle: (id: string) => void;
-}) {
-  const [query, setQuery] = useState('');
-  const [region, setRegion] = useState('');
-  const [uf, setUf] = useState('');
-  const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'ranking', descending: false });
-  const states = [...new Set(rows.filter(row => !region || row.regiao === region).map(row => row.uf))].sort();
-  const shown = rows.filter(row => (!region || row.regiao === region) && (!uf || row.uf === uf) &&
-    norm(row.name + ' ' + geographic(row) + ' ' + row.regiao).includes(norm(query.trim())))
-    .sort((a, b) => {
-      const direction = sort.descending ? -1 : 1;
-      if (sort.key === 'territory') return a.id.localeCompare(b.id) * direction;
-      const av = a[sort.key], bv = b[sort.key];
-      if (av == null) return bv == null ? a.id.localeCompare(b.id) : 1;
-      if (bv == null) return -1;
-      return (av - bv) * direction || a.id.localeCompare(b.id);
-    });
-  const selected = pinned.filter(id => rows.some(row => row.id === id));
-  function heading(key: SortKey, name: string) {
-    const current = sort.key === key;
-    const Icon = sort.descending ? ArrowDown : ArrowUp;
-    return <th scope="col" aria-sort={current ? (sort.descending ? 'descending' : 'ascending') : undefined}>
-      <button className="sort-button" onClick={() => setSort({
-        key, descending: current ? !sort.descending : key !== 'ranking' && key !== 'territory',
-      })}>{name}{current && <Icon size={14} />}</button>
-    </th>;
-  }
-  return <section className="panel explorer">
-    <div className="filters">
-      <label className="search"><Search size={18} /><input type="search" placeholder="Buscar nome, UF ou CEP" aria-label="Buscar sub-região" value={query} onChange={e => setQuery(e.target.value)} /></label>
-      <label>Região<select value={region} onChange={e => { setRegion(e.target.value); setUf(''); }}><option value="">Todas</option>{regions.map(r => <option key={r}>{r}</option>)}</select></label>
-      <label>UF<select value={uf} onChange={e => setUf(e.target.value)}><option value="">Todas</option>{states.map(s => <option key={s}>{s}</option>)}</select></label>
-    </div>
-    <div className="results-bar"><p role="status">{shown.length} sub-regiões</p>
-      {selected.length > 0 && <a className="button primary" href={compareLink(period, selected)}><GitCompareArrows size={16} /> Comparar ({selected.length}/5)</a>}</div>
-    {shown.length ? <div className="table-scroll"><table className="territory-table"><thead><tr><th scope="col"><span className="sr-only">Comparar</span></th>
-      {heading('territory', 'Sub-região')}<th scope="col" className="secondary-column">Região</th>
-      {heading('ranking', 'Posição')}{heading('score', 'Score')}{heading('risk', 'Risco')}
-      {heading('potential', 'Oportunidade')}<th scope="col" className="secondary-column">Faixa</th></tr></thead>
-      <tbody>{shown.map(row => <tr key={row.id}><td><input type="checkbox" aria-label={'Comparar ' + geographic(row)} checked={pinned.includes(row.id)}
-        disabled={pinned.length >= 5 && !pinned.includes(row.id)} onChange={() => toggle(row.id)} /></td>
-        <th scope="row"><a href={url('sub', period, row.id)}>{geographic(row)}</a>{row.name !== geographic(row) && <small>{row.name}</small>}</th>
-        <td className="secondary-column">{row.regiao}</td><td>{row.ranking != null ? row.ranking + 'º' : '—'}</td><td><strong>{number(row.score)}</strong></td><td>{number(row.risk)}</td><td>{number(row.potential)}</td><td className="secondary-column">{row.faixa || '—'}</td></tr>)}</tbody>
-    </table></div> : <div className="empty"><Search size={25} /><h2>Nenhuma sub-região encontrada</h2><p>Altere a busca ou os filtros.</p></div>}
-  </section>;
 }
 
 function Detail({ row, data, period, months, changePeriod, explain, rows }: {
@@ -244,7 +206,10 @@ function Detail({ row, data, period, months, changePeriod, explain, rows }: {
     </div>
     <div className="detail-summary"><div><div className="heading-inline"><h2>{row.faixa || 'Faixa indisponível'}</h2>{row.legacyRisk && <MethodLink period={period} />}</div>
       <p>Variação do score ante a competência anterior da base: <b>{change(diff(row.score, prev?.score))}</b> {row.operacoes != null && ' · ' + number(row.operacoes, 0) + ' operações'}{row.peso != null && ' · peso amostral ' + number(row.peso)}</p></div>
-      <div className="result-actions"><button className="button primary" onClick={() => explain([row])}><MessageSquareText size={16} /> Explicar com IA</button><a className="button subtle" href={compareLink(period, [row.id])}><GitCompareArrows size={15} /> Comparar</a></div></div>
+      <div className="result-actions">
+        <Button variant="primary" leadingVisual={CommentDiscussionIcon} onClick={() => explain([row])}>Explicar com IA</Button>
+        <Button as="a" leadingVisual={GitCompareIcon} href={compareLink(period, [row.id])}>Comparar</Button>
+      </div></div>
     <div className="detail-grid">
       <section className="panel"><div className="panel-heading"><div><h2>Evolução do score</h2><p>Até 12 competências · escala de 0 a 100</p></div></div>
         <Trend periods={history.map(p => p.period)} lines={[{ label: geographic(row), values: history.map(p => p.row?.score ?? null) }]} label="Evolução do score publicado" />
@@ -273,11 +238,18 @@ function Compare({ rows, data, period, ids, explain }: {
   const chartHistory = selected.map(row => series(data, period, row.id));
   return <>
     <section className="panel compare-controls">
-      <div className="filters"><label>Adicionar sub-região<select value={candidate} onChange={event => setCandidate(event.target.value)} disabled={selected.length >= 5}>
-        <option value="">Selecione UF e prefixo de CEP</option>
-        {rows.filter(row => !activeIds.includes(row.id)).sort((a, b) => a.id.localeCompare(b.id)).map(row => <option value={row.id} key={row.id}>{geographic(row)} · {row.regiao}</option>)}</select></label>
-        {candidate && <a className="button primary" href={compareLink(period, [...activeIds, candidate])}>Adicionar</a>}
-        {selected.length > 0 && <button className="button subtle" onClick={() => explain(selected)}><MessageSquareText size={15} /> {selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}</button>}
+      <div className="filters"><FormControl disabled={selected.length >= 5}>
+        <FormControl.Label>Adicionar sub-região</FormControl.Label>
+        <Select block value={candidate} onChange={event => setCandidate(event.target.value)}>
+          <Select.Option value="">UF e prefixo de CEP</Select.Option>
+          {rows.filter(row => !activeIds.includes(row.id)).sort((a, b) => a.id.localeCompare(b.id)).map(row =>
+            <Select.Option value={row.id} key={row.id}>{geographic(row)} · {row.regiao}</Select.Option>)}
+        </Select>
+      </FormControl>
+        <ButtonGroup>
+          {candidate && <Button as="a" variant="primary" href={compareLink(period, [...activeIds, candidate])}>Adicionar</Button>}
+          {selected.length > 0 && <Button leadingVisual={CommentDiscussionIcon} onClick={() => explain(selected)}>{selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}</Button>}
+        </ButtonGroup>
       </div>
       <div className="comparison-chips">{selected.map(row => <a key={row.id} href={compareLink(period, activeIds.filter(id => id !== row.id))}
         aria-label={'Remover ' + geographic(row)}>{geographic(row)} <X size={14} /></a>)}</div>
@@ -332,11 +304,13 @@ function Indicators({ rows, data, period, initial }: { rows: Row[]; data: Datase
     }),
   }));
   return <>
-    <div className="panel filters indicator-filter"><label>Indicador<select value={field} onChange={e => setField(e.target.value as Indicator)}>{Object.entries(indicators).map(([key, [label]]) => <option key={key} value={key}>{label}</option>)}</select></label>
+    <div className="panel filters indicator-filter"><FormControl><FormControl.Label>Indicador</FormControl.Label>
+      <Select block value={field} onChange={e => setField(e.target.value as Indicator)}>{Object.entries(indicators).map(([key, [label]]) => <Select.Option key={key} value={key}>{label}</Select.Option>)}</Select>
+      </FormControl>
       <p>{description} <b>Nível {scope === 'UF' ? 'estadual' : 'sub-regional'}.</b></p></div>
     <div className="detail-grid indicator-grid">
       <section className="panel"><div className="panel-heading"><div><h2>{name}</h2><p>{descending ? '15 maiores notas' : '15 menores notas'} · escala de 1 a 5</p></div>
-        <button className="button subtle" onClick={() => setDescending(v => !v)}><ArrowDown size={15} /> Inverter ordem</button></div>
+        <Button leadingVisual={ArrowDownIcon} onClick={() => setDescending(v => !v)}>Inverter ordem</Button></div>
         {shown.length ? <div className="table-scroll"><table><thead><tr><th>Território</th><th>Região</th><th>Nota</th></tr></thead>
           <tbody>{shown.map(row => <tr key={row.id}><th>{scope === 'UF' ? row.uf : <a href={url('sub', period, row.id)}>{geographic(row)}</a>}</th><td>{row.regiao}</td><td>{number(note(row, field))}</td></tr>)}</tbody></table></div>
           : <p className="inline-note">Sem valores disponíveis nesta competência.</p>}</section>

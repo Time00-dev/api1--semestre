@@ -25,6 +25,7 @@ export function useThemePreference() {
   const theme = manual || system;
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.colorMode = theme;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#121922' : '#f3f6f8');
   }, [theme]);
   function toggleTheme() {

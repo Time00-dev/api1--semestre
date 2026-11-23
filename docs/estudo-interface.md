@@ -42,3 +42,9 @@ Objetivo. Em segundos, encontrar a competência e o território, interpretar o r
 - O símbolo usa os pixels do [avatar oficial do Time00.dev](https://github.com/Time00-dev). O SVG incorpora o JPEG original servido pelo GitHub e aplica um recorte e uma máscara de opacidade para retirar a placa. A geometria e o centro ciano vêm da imagem fonte.
 - A paleta usa ciano e neutros. A dispersão diferencia as cinco regiões com formatos de pontos. As séries combinam formatos e padrões de linha para manter a leitura com duas famílias cromáticas.
 - Verificados no Chromium os cantos transparentes e o centro ciano do símbolo, o caminho da ficha, o retorno à lista preservando outubro de 2026 e a renderização em desktop e celular nos dois temas.
+
+## Primer no painel
+
+A revisão usa Primer React para navegação, breadcrumb, botões, campos, opções de competência, alternância de visualização, seleção, paginação e carregamento. As tabelas HTML seguem a hierarquia do DataTable do Primer com números alinhados, cabeçalho de ordenação, ações de seleção e filtros nomeados. Busca, região e UF são preservados no link. No celular as colunas de apoio cedem lugar às notas essenciais na linha. A ficha é a ação principal da seleção do panorama. Os temas claro e dark dimmed usam os tokens oficiais com ciano como cor de ênfase da marca.
+
+Referências: [Primer DataTable](https://primer.style/product/components/data-table/), [Primer Filter](https://primer.style/product/scenario-patterns/filter/) e [Primer Theming](https://primer.style/product/getting-started/react/theming/).

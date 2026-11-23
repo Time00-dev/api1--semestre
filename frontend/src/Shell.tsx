@@ -1,9 +1,10 @@
-import { ArrowUpRight, BookOpenText, ChartNoAxesCombined, ChevronDown, ChevronRight, Compass, GitCompareArrows, Map, Moon, Sun } from 'lucide-react';
+import { Breadcrumbs, Button, CounterLabel, NavList } from '@primer/react';
+import { ArrowUpRightIcon, BookIcon, ChevronDownIcon, HomeIcon, GitCompareIcon, GlobeIcon, GraphIcon, MoonIcon, SunIcon } from '@primer/octicons-react';
 import { useId, useRef } from 'react';
-import { pages, url, type Page } from './navigation';
+import { compareLink, pages, url, type Page } from './navigation';
 
 const repo = 'https://github.com/Time00-dev/api1--semestre';
-const icons = [Compass, Map, GitCompareArrows, ChartNoAxesCombined, BookOpenText];
+const icons = [HomeIcon, GlobeIcon, GitCompareIcon, GraphIcon, BookIcon];
 
 export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
   page: Page; detailLabel?: string; period: string; pinned: string[]; theme: 'light' | 'dark'; onTheme: () => void;
@@ -14,13 +15,18 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
   const active = page === 'sub' ? 'subregioes' : page;
   const activeIndex = pages.findIndex(([key]) => key === active);
   const CurrentIcon = icons[activeIndex];
+  const themeLabel = theme === 'dark' ? 'Tema claro' : 'Tema escuro';
+  const parents = [{ key: 'geral' as const, label: 'Panorama' }];
+  const trail = page === 'sub' ? [...parents, { key: 'subregioes' as const, label: 'Sub-regiões' }] : parents;
   const items = (mobile = false) => pages.map(([key, label], index) => {
     const Icon = icons[index];
-    const target = key === 'comparar' && pinned.length ? url(key, period, undefined, { s: pinned.join(',') }) : url(key, period);
-    return <a key={key} href={target} aria-current={active === key ? 'page' : undefined}
+    const target = key === 'comparar' && pinned.length ? compareLink(period, pinned) : url(key, period);
+    return <NavList.Item key={key} href={target} aria-current={active === key ? 'page' : undefined}
       onClick={mobile ? () => { menu.current?.hidePopover(); trigger.current?.focus({ preventScroll: true }); } : undefined}>
-      <Icon size={18} /><span>{label}</span>{key === 'comparar' && pinned.length > 0 && <small>{pinned.length}</small>}
-    </a>;
+      <NavList.LeadingVisual><Icon /></NavList.LeadingVisual>
+      {label}
+      {key === 'comparar' && pinned.length > 0 && <NavList.TrailingVisual><CounterLabel>{pinned.length}</CounterLabel></NavList.TrailingVisual>}
+    </NavList.Item>;
   });
 
   return <>
@@ -29,9 +35,9 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
         <img src={import.meta.env.BASE_URL + 'time00.svg'} alt="" width="45" height="29" />
         <span>Negado pelo<br />Banco</span>
       </a>
-      <nav className="rail-nav" aria-label="Páginas">{items()}</nav>
+      <NavList className="rail-nav" aria-label="Páginas">{items()}</NavList>
       <div className="rail-footer">
-        <a href={repo} target="_blank" rel="noreferrer">GitHub <ArrowUpRight size={15} /></a>
+        <a href={repo} target="_blank" rel="noreferrer">GitHub <ArrowUpRightIcon size={14} /></a>
         <span>Time00.dev · FATEC</span>
       </div>
     </aside>
@@ -42,28 +48,24 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
           <span>Negado pelo Banco</span>
         </a>
         {page === 'geral' ? <span className="section-path">Panorama</span> :
-          <nav className="breadcrumb" aria-label="Caminho da página">
-            <ol>
-              <li><a href={url('geral', period)}>Panorama</a></li>
-              {page === 'sub' && <li><ChevronRight size={13} aria-hidden="true" /><a href={url('subregioes', period)}>Sub-regiões</a></li>}
-              <li><ChevronRight size={13} aria-hidden="true" />
-                <span aria-current="page">{page === 'sub' ? detailLabel || 'Ficha' : pages[activeIndex][1]}</span></li>
-            </ol>
-          </nav>}
+          <Breadcrumbs className="breadcrumb">
+            {trail.map(item => <Breadcrumbs.Item key={item.key} href={url(item.key, period)}>{item.label}</Breadcrumbs.Item>)}
+            <Breadcrumbs.Item as="span" selected aria-current="page">{page === 'sub' ? detailLabel || 'Ficha' : pages[activeIndex][1]}</Breadcrumbs.Item>
+          </Breadcrumbs>}
         <div className="mobile-navigation">
-          <button ref={trigger} className="mobile-nav-trigger" popoverTarget={id}
+          <Button ref={trigger} className="mobile-nav-trigger" popoverTarget={id} alignContent="start"
+            leadingVisual={CurrentIcon} trailingVisual={ChevronDownIcon}
             aria-label={'Selecionar página · ' + pages[activeIndex][1]}>
-            <CurrentIcon size={17} /><span>{pages[activeIndex][1]}</span><ChevronDown size={16} />
-          </button>
+            {pages[activeIndex][1]}
+          </Button>
           <div id={id} ref={menu} popover="auto" className="popover page-picker">
-            <nav aria-label="Selecionar página">{items(true)}</nav>
+            <NavList aria-label="Selecionar página">{items(true)}</NavList>
           </div>
         </div>
-        <button className="theme-switch" type="button" onClick={onTheme}
-          aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}>
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
-        </button>
+        <Button className="theme-switch" onClick={onTheme} leadingVisual={theme === 'dark' ? SunIcon : MoonIcon}
+          aria-label={'Ativar ' + themeLabel.toLowerCase()}>
+          <span className="theme-label">{themeLabel}</span>
+        </Button>
       </div>
     </header>
   </>;

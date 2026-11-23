@@ -156,11 +156,15 @@ def permitir_origem(resposta):
 
 @bp.route("/api/analise", methods=["POST", "OPTIONS"])
 def analisar():
+    origem = request.headers.get('Origin')
+    permitida = os.environ.get('ANALYSIS_ALLOWED_ORIGIN', '').strip()
+    if origem and origem not in (permitida, request.host_url.rstrip('/')):
+        return jsonify(erro='Origem não permitida para a análise.'), 403
     if request.method == "OPTIONS":
         return "", 204
     chave = os.environ.get("OPENAI_API_KEY", "").strip()
     acesso = os.environ.get("ANALYSIS_ACCESS_TOKEN", "").strip()
-    if not chave or not acesso:
+    if not chave or len(acesso) < 32 or hmac.compare_digest(acesso.encode(), chave.encode()):
         return jsonify(erro="A geração por IA ainda não foi habilitada neste servidor. Os resultados da base seguem disponíveis."), 503
     recebido = request.headers.get("Authorization", "")
     if not hmac.compare_digest(recebido.encode(), ("Bearer " + acesso).encode()):
