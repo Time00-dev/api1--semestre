@@ -4,12 +4,12 @@ import { Chart as ChartJS, ScatterController, LineController, LinearScale, Categ
 import { Line, Scatter } from 'react-chartjs-2';
 import { geographic, month, number, regions, type Row } from './data';
 ChartJS.register(ScatterController, LineController, LinearScale, CategoryScale, PointElement, LineElement, Tooltip, Legend, Filler);
-ChartJS.defaults.font.family = 'Inter, system-ui, sans-serif';
-ChartJS.defaults.color = '#536465';
+ChartJS.defaults.font.family = 'IBM Plex Sans, system-ui, sans-serif';
+ChartJS.defaults.color = '#536371';
 
-export const chartColors = ['#31645f', '#657c9a', '#a26745', '#796386', '#a58945'];
-const grid = '#e6e8e1';
-const dark = '#213b38';
+export const chartColors = ['#21838a', '#5273a5', '#a66243', '#7c5e9c', '#927809'];
+const grid = '#e4e8ee';
+const dark = '#153749';
 const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 const subscribe = (update: () => void) => {
   motionQuery.addEventListener('change', update);
@@ -29,7 +29,7 @@ export function RiskPlot({ rows, selected, onSelect }: {
         data: items.map(row => ({ x: row.risk!, y: row.potential!, id: row.id, row })),
         pointRadius: items.map(row => row.id === selected ? 7 : 4),
         pointBackgroundColor: items.map(row => row.id === selected ? dark : chartColors[i] + 'a8'),
-        pointBorderColor: items.map(row => row.id === selected ? '#edf2e8' : '#fff'),
+        pointBorderColor: items.map(row => row.id === selected ? '#eef8fa' : '#fff'),
         pointBorderWidth: items.map(row => row.id === selected ? 2 : 0.5),
         pointHoverRadius: 7,
         pointHitRadius: 8,
@@ -50,7 +50,7 @@ export function RiskPlot({ rows, selected, onSelect }: {
       const y = chart.scales.y.getPixelForValue(item.y);
       const { ctx, chartArea } = chart;
       ctx.save();
-      ctx.strokeStyle = '#38685c90';
+      ctx.strokeStyle = '#16739190';
       ctx.setLineDash([3, 4]);
       ctx.beginPath();
       ctx.moveTo(chartArea.left, y);

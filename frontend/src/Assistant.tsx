@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Send, Sparkles, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Send, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { geographic, month, number, rank, type Row } from './data';
 import { url } from './navigation';
@@ -49,11 +49,11 @@ export function Assistant({ rows, period, allRows, close }: {
     onClick={event => { if (event.target === event.currentTarget) close(); }}
     aria-labelledby="assistant-title">
     <section className="assistant-content">
-      <header><div><span className="eyebrow">Consulta contextual</span><h2 id="assistant-title"><Sparkles size={21} /> Explicar resultados</h2></div>
+      <header><h2 id="assistant-title">{rows.length === 1 ? 'Explicar score' : 'Explicar diferenças'}</h2>
         <button type="button" className="icon-button" aria-label="Fechar análise" onClick={close}><X size={22} /></button></header>
       <p className="muted">{month(period)} · {rows.length === 1 ? geographic(rows[0]) : rows.length + ' sub-regiões'}</p>
       <div className="assistant-records">
-        <h3>Resultados consultados</h3>
+        <h3>Na análise</h3>
         {rows.map(row => <a key={row.id} href={url('sub', period, row.id)} onClick={close}>
           <span>{geographic(row)}<small>{row.ranking == null ? 'Sem posição publicada' : row.ranking + 'º de ' + rank(allRows).length + ' no ranking'}</small></span>
           <strong>{number(row.score)}</strong><ArrowUpRight size={15} />
@@ -61,7 +61,7 @@ export function Assistant({ rows, period, allRows, close }: {
         {rows.some(row => row.legacyRisk) && <p className="notice">O score publicado pode incluir a antiga nota de fragilidade. O lote requer validação.</p>}
       </div>
       <form onSubmit={ask}>
-        <label htmlFor="question">O que você quer entender?</label>
+        <label htmlFor="question">Pergunta</label>
         <textarea id="question" maxLength={500} rows={3} value={question} onChange={event => setQuestion(event.target.value)} required />
         <details className="ai-access">
           <summary>Código de acesso da equipe</summary>

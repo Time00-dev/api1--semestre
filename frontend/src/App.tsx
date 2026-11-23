@@ -1,6 +1,6 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, BookOpen, CalendarDays,
-  ChevronDown, ChevronRight, CircleHelp, Database, GitCompareArrows, Globe2, ListFilter,
-  Search, Sparkles, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays,
+  ChevronDown, ChevronRight, CircleHelp, Database, GitCompareArrows,
+  MessageSquareText, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Assistant } from './Assistant';
 import { RiskPlot, Trend } from './Charts';
@@ -8,7 +8,6 @@ import { geographic, indicators, loadData, mean, month, note, number, potentialK
   rank, regions, riskKeys, series, type Dataset, type Indicator, type Row } from './data';
 import { pages, url, useRoute } from './navigation';
 
-const navIcons = [BarChart3, Globe2, GitCompareArrows, ListFilter, BookOpen];
 const norm = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const repo = 'https://github.com/Time00-dev/api1--semestre';
 const notebook = repo + '/blob/main/backend/GJ00_46.ipynb';
@@ -65,33 +64,29 @@ function App() {
     <a href="#conteudo" className="skip" onClick={event => { event.preventDefault(); document.getElementById('conteudo')?.focus(); }}>Pular para o conteúdo</a>
     <header className="site-header">
       <div className="shell topline">
-        <a className="brand" href={url('geral', period)}><img src={import.meta.env.BASE_URL + 'marca.svg'} alt="" width="35" height="35" /><span>Negado pelo Banco <small>TIME00.DEV / FATEC</small></span></a>
-        <div className="top-right"><a href={repo} target="_blank" rel="noreferrer">Projeto no GitHub <ArrowUpRight size={14} /></a></div>
+        <a className="brand" href={url('geral', period)}>
+          <span className="brand-mark"><img src={import.meta.env.BASE_URL + 'time00.png'} alt="" width="58" height="58" /></span>
+          <span>Negado pelo Banco</span>
+        </a>
+        <nav aria-label="Navegação principal">
+          {pages.map(([id, label]) => {
+            const current = route.page === id || (route.page === 'sub' && id === 'subregioes');
+            return <a href={id === 'comparar' && pinnedRows.length ? compareLink(period, pinnedRows) : url(id, period)}
+              aria-current={current ? 'page' : undefined} key={id}>{label}</a>;
+          })}
+        </nav>
+        <a className="github-link" href={repo} target="_blank" rel="noreferrer" aria-label="Repositório no GitHub">GitHub <ArrowUpRight size={14} /></a>
       </div>
-      <div className="shell navrow"><nav aria-label="Navegação principal">
-        {pages.map(([id, label], i) => {
-          const Icon = navIcons[i];
-          const current = route.page === id || (route.page === 'sub' && id === 'subregioes');
-          return <a href={id === 'comparar' && pinnedRows.length ? compareLink(period, pinnedRows) : url(id, period)}
-            aria-current={current ? 'page' : undefined} key={id}><Icon size={16} />{label}</a>;
-        })}
-      </nav></div>
     </header>
 
     <main id="conteudo" tabIndex={-1} className="shell page">
       {route.page !== 'geral' && <div className="crumb"><a href={url('geral', period)}>Panorama</a><ChevronRight size={13} />{pageLabel}</div>}
       {route.page !== 'sub' && <div className="page-heading">
         <div><h1>{({
-          geral: 'Crédito regional', subregioes: 'Sub-regiões',
+          geral: 'Crédito por sub-região', subregioes: 'Sub-regiões',
           comparar: 'Comparar sub-regiões', indicadores: 'Indicadores', metodologia: 'Fontes e metodologia',
         })[route.page]}</h1>
-        <p>{({
-          geral: 'Risco e oportunidade por sub-região do Brasil.',
-          subregioes: 'Consulte os territórios da base e selecione até cinco para comparar.',
-          comparar: 'Leia os resultados lado a lado, da nota ao histórico.',
-          indicadores: 'Veja como as notas se distribuem por território e evoluem no tempo.',
-          metodologia: 'Entenda de onde vêm os dados e como o score é calculado.',
-        })[route.page]}</p></div>
+        </div>
         {ready && !isMethod && <Period months={months} value={period} set={changePeriod} />}
       </div>}
       {isMethod ? <Method /> : error ? <div className="empty"><Database size={28} /><h2>Dados indisponíveis</h2><p>{error}</p>
@@ -128,7 +123,7 @@ function Period({ months, value, set }: { months: string[]; value: string; set: 
 }
 
 function DataNotice({ period }: { period: string }) {
-  return <div className="data-note"><CircleHelp size={16} /><p>O lote publicado tem notas de fragilidade após a interrupção da série. O eixo de risco exibido omite esse indicador no período. Scores e posições são os publicados e aguardam validação. <a href={url('metodologia', period)}>Entenda a diferença</a></p></div>;
+  return <div className="data-note"><CircleHelp size={16} /><p>A fonte deixou de informar fragilidade em jan/2025. O risco exibido ignora a nota antiga. O score e a posição publicados ainda aguardam validação. <a href={url('metodologia', period)}>Entenda a diferença</a></p></div>;
 }
 
 function Overview({ rows, ranking, active, period, select, explain }: {
@@ -144,9 +139,9 @@ function Overview({ rows, ranking, active, period, select, explain }: {
       <div><span>Oportunidade média <small>/ 5</small></span><strong>{number(mean(rows.map(row => row.potential)))}</strong></div>
     </div>
     <div className="overview">
-      <section className="panel chart-panel">
+      <section className="chart-panel">
         <div className="panel-heading">
-          <div><h2>Risco × oportunidade</h2><p>Cada ponto representa uma sub-região.</p></div>
+          <div><h2>Risco × oportunidade</h2></div>
           <div className="segmented" aria-label="Formato da visualização">
             {(['gráfico', 'tabela'] as const).map(label => <button aria-pressed={mode === label} key={label} onClick={() => setMode(label)}>{label}</button>)}
           </div>
@@ -155,31 +150,32 @@ function Overview({ rows, ranking, active, period, select, explain }: {
           <div className="table-scroll plot-table"><table><thead><tr><th>Sub-região</th><th>Risco</th><th>Oportunidade</th></tr></thead><tbody>
             {rows.map(row => <tr key={row.id} className={row.id === active?.id ? 'current-row' : ''}><th><button className="table-link" onClick={() => select(row.id)}>{geographic(row)}</button></th><td>{number(row.risk)}</td><td>{number(row.potential)}</td></tr>)}
           </tbody></table></div>}
-        {active && <div className="plot-selection"><div><i /><div><strong>{geographic(active)}</strong><span>{active.regiao} · {active.faixa || 'Faixa indisponível'}</span></div></div>
-          <a className="text-link" href={url('sub', period, active.id)}>Ver ficha <ArrowRight size={15} /></a></div>}
       </section>
-      <section className="panel ranking-panel">
-        <div className="panel-heading"><div><h2>Ranking de oportunidade</h2><p>Score publicado · escala de 0 a 100</p></div></div>
+      <section className="ranking-panel">
+        <div className="panel-heading"><div><h2>Ranking</h2><p>Score de oportunidade / 100</p></div></div>
         {!ranking.length && <p className="inline-note">Sem ranking para esta competência.</p>}
         <div className="ranking-list" aria-label="Sub-regiões destacadas">
           {(active && !displayed.slice(0, 6).includes(active) ? [...displayed.slice(0, 5), active] : displayed.slice(0, 6))
             .map(row => <button key={row.id} className={'rank-row' + (active?.id === row.id ? ' selected' : '')}
               aria-pressed={active?.id === row.id} onClick={() => select(row.id)}>
-              <span className="position">{row.ranking == null ? '—' : String(row.ranking).padStart(2, '0')}</span>
-              <span><strong>{geographic(row)}</strong><small>{row.regiao}</small></span>
+              <span className="position">{row.ranking == null ? '—' : row.ranking + 'º'}</span>
+              <strong>{geographic(row)}</strong>
               <strong className="rank-score">{number(row.score)}</strong>
             </button>)}
         </div>
         <a className="text-link rank-all" href={url('subregioes', period)}>Ver ranking completo <ArrowRight size={15} /></a>
       </section>
-    {active && <section className="panel result-panel">
-      <div className="result-copy"><span className="eyebrow">Sub-região selecionada</span><h2>{geographic(active)}</h2>
-        <p>{active.regiao} · {active.faixa || 'Faixa indisponível'}</p></div>
+    {active && <section className="result-panel">
+      <div className="result-copy"><h2>{geographic(active)}</h2>
+        <p>{active.faixa || active.regiao}</p></div>
       <div className="result-stat"><small>Risco</small><strong>{number(active.risk)}</strong></div>
       <div className="result-stat"><small>Oportunidade</small><strong>{number(active.potential)}</strong></div>
       <div className="result-stat"><small>Score publicado</small><strong>{number(active.score)}</strong></div>
-      <div className="result-actions"><button className="button primary" onClick={explain}><Sparkles size={16} /> Explicar com IA</button>
-        <a className="button subtle" href={compareLink(period, [active.id])}><GitCompareArrows size={15} /> Comparar</a></div>
+      <div className="result-actions">
+        <a className="button subtle result-sheet" href={url('sub', period, active.id)}>Ver ficha <ArrowRight size={15} /></a>
+        <a className="button subtle" href={compareLink(period, [active.id])}>Comparar</a>
+        <button className="button primary" onClick={explain}><MessageSquareText size={15} /> Explicar com IA</button>
+      </div>
     </section>}
     </div>
   </>;
@@ -239,7 +235,7 @@ function Detail({ row, data, period, months, changePeriod, explain, rows }: {
     </div>
     <div className="panel detail-summary"><div><h2>{row.faixa || 'Faixa indisponível'}</h2>
       <p>Variação do score ante a competência anterior da base: <b>{change(diff(row.score, prev?.score))}</b> {row.operacoes != null && ' · ' + number(row.operacoes, 0) + ' operações'}{row.peso != null && ' · peso amostral ' + number(row.peso)}</p></div>
-      <div className="result-actions"><button className="button primary" onClick={() => explain([row])}><Sparkles size={16} /> Explicar com IA</button><a className="button subtle" href={compareLink(period, [row.id])}><GitCompareArrows size={15} /> Comparar</a></div></div>
+      <div className="result-actions"><button className="button primary" onClick={() => explain([row])}><MessageSquareText size={16} /> Explicar com IA</button><a className="button subtle" href={compareLink(period, [row.id])}><GitCompareArrows size={15} /> Comparar</a></div></div>
     {row.legacyRisk && <DataNotice period={period} />}
     <div className="detail-grid">
       <section className="panel"><div className="panel-heading"><div><h2>Evolução do score</h2><p>Até 12 competências · escala de 0 a 100</p></div></div>
@@ -273,7 +269,7 @@ function Compare({ rows, data, period, ids, explain }: {
         <option value="">Selecione UF e prefixo de CEP</option>
         {rows.filter(row => !activeIds.includes(row.id)).sort((a, b) => a.id.localeCompare(b.id)).map(row => <option value={row.id} key={row.id}>{geographic(row)} · {row.regiao}</option>)}</select></label>
         {candidate && <a className="button primary" href={compareLink(period, [...activeIds, candidate])}>Adicionar</a>}
-        {selected.length > 0 && <button className="button subtle" onClick={() => explain(selected)}><Sparkles size={15} /> {selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}</button>}
+        {selected.length > 0 && <button className="button subtle" onClick={() => explain(selected)}><MessageSquareText size={15} /> {selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}</button>}
       </div>
       <div className="comparison-chips">{selected.map(row => <a key={row.id} href={compareLink(period, activeIds.filter(id => id !== row.id))}
         aria-label={'Remover ' + geographic(row)}>{geographic(row)} <X size={14} /></a>)}</div>
