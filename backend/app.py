@@ -17,6 +17,7 @@ import pymysql
 from flask import Flask, jsonify, request
 
 import carga
+from analise import bp as analise_bp
 from banco import AMOSTRA, CHAVE, EIXO_I, EIXO_II, PASTA, SCORE, conectar
 
 COLUNAS_CONSULTA = ", ".join(CHAVE + EIXO_I + EIXO_II + SCORE + AMOSTRA)
@@ -28,7 +29,9 @@ REGEX_ANO_MES = re.compile(r"^\d{6}$")
 REGEX_UF = re.compile(r"^[A-Z]{2}$")
 REGEX_SUB_REGIAO = re.compile(r"^\d{2}$")
 
-app = Flask(__name__, static_folder=os.path.join(PASTA, "..", "frontend"), static_url_path="")
+app = Flask(__name__, static_folder=os.path.join(PASTA, "..", "frontend", "dist"), static_url_path="")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or None
+app.register_blueprint(analise_bp)
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB por envio; um mês inteiro tem uns 60 KB
 app.logger.setLevel(logging.INFO)  # sem isso, o registro "Carga gravada" não aparece no terminal
 
@@ -109,25 +112,28 @@ def montar_resposta(linhas, meses_disponiveis=None):
     return resposta
 
 
+def consultar_resultados(filtros):
+    sql, parametros = montar_sql_filtrado(filtros)
+    conexao = conectar()
+    try:
+        with conexao.cursor() as cursor:
+            cursor.execute(sql, parametros)
+            linhas = cursor.fetchall()
+            cursor.execute(SQL_MESES)
+            meses = [item["ano_mes"] for item in cursor.fetchall()]
+    finally:
+        conexao.close()
+    return linhas, meses
+
+
 @app.get("/api/sub-regioes")
 def sub_regioes():
     filtros, erro = validar_e_extrair_filtros(request.args)
     if erro:
         return jsonify(erro=erro), 400
 
-    sql_filtrado, parametros = montar_sql_filtrado(filtros)
-
     try:
-        conexao = conectar()
-        try:
-            with conexao.cursor() as cursor:
-                cursor.execute(sql_filtrado, parametros)
-                linhas = cursor.fetchall()
-
-                cursor.execute(SQL_MESES)
-                meses_disponiveis = [item["ano_mes"] for item in cursor.fetchall()]
-        finally:
-            conexao.close()
+        linhas, meses_disponiveis = consultar_resultados(filtros)
     except (pymysql.MySQLError, RuntimeError, ValueError):
         app.logger.exception("Falha ao consultar o banco")
         return jsonify(erro="Banco de dados indisponível"), 503
@@ -169,4 +175,6 @@ def receber_carga():
 
 @app.get("/")
 def site():
+    if not os.path.isfile(os.path.join(app.static_folder, "index.html")):
+        return "Compile o painel com npm ci e npm run build na pasta frontend.", 503
     return app.send_static_file("index.html")
