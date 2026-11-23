@@ -391,9 +391,9 @@
   background: var(--section);
 }
 
-@media (min-width: 841px) and (max-height: 900px) {
-  .page:has(.overview-board) {
-    padding-block: 16px;
+@media (min-width: 841px) and (max-height: 1024px) {
+  .page-overview {
+    padding-block: 9px;
   }
 
   .overview-heading {
@@ -402,7 +402,7 @@
   }
 
   .overview-board {
-    --overview-pad: 15px;
+    --overview-pad: 12px;
     grid-template-columns: minmax(0, 1.8fr) minmax(275px, 1fr);
   }
 
@@ -420,7 +420,7 @@
   }
 
   .overview-chart :is(.scatter, .overview-chart-table) {
-    height: 273px;
+    height: clamp(243px, calc(100dvh - 555px), 405px);
   }
 
   .overview-selection-head {

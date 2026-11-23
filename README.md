@@ -120,7 +120,7 @@ ANALYSIS_ACCESS_TOKEN=<credencial aleatória de acesso>
 ANALYSIS_ALLOWED_ORIGIN=http://127.0.0.1:5178
 ```
 
-- Configure `OPENAI_API_KEY` somente no servidor. Escolha o modelo em `OPENAI_ANALYSIS_MODEL`.
+- Configure `OPENAI_API_KEY` somente no servidor. O padrão é `gpt-6-luna`, configurável em `OPENAI_ANALYSIS_MODEL`.
 - Defina `ANALYSIS_ACCESS_TOKEN` com um valor aleatório de pelo menos 32 caracteres, separado
   da chave OpenAI e do token de carga. Por exemplo, gere com
   `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Essa credencial é solicitada somente quando o servidor exige autenticação.

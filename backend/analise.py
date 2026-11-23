@@ -121,7 +121,7 @@ def reservar_chamada():
 
 
 def explicacao_openai(chave, pergunta, contexto):
-    modelo = os.environ.get("OPENAI_ANALYSIS_MODEL", "gpt-5-mini").strip()
+    modelo = os.environ.get("OPENAI_ANALYSIS_MODEL", "").strip() or "gpt-6-luna"
     corpo = json.dumps({
         "model": modelo, "instructions": INSTRUCOES, "store": False,
         "input": json.dumps({"pergunta": pergunta, "base": contexto}, ensure_ascii=False),

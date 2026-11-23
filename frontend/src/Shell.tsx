@@ -29,11 +29,13 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme, child
   breadcrumbs.push(page === 'geral'
     ? <Breadcrumbs.Item key={page} href={url(page, period)} selected aria-current="page">{currentLabel}</Breadcrumbs.Item>
     : <Breadcrumbs.Item key={page} as="span" selected aria-current="page">{currentLabel}</Breadcrumbs.Item>);
-  const items = (mobile = false) => pages.map(([key, label], index) => {
+  const pageLink = (key: typeof pages[number][0]) =>
+    key === 'comparar' && pinned.length ? compareLink(period, pinned) : url(key, period);
+  const mobileItems = pages.map(([key, label], index) => {
     const Icon = icons[index];
-    const target = key === 'comparar' && pinned.length ? compareLink(period, pinned) : url(key, period);
+    const target = pageLink(key);
     return <NavList.Item key={key} href={target} aria-current={active === key ? 'page' : undefined}
-      onClick={mobile ? () => { menu.current?.hidePopover(); trigger.current?.focus({ preventScroll: true }); } : undefined}>
+      onClick={() => { menu.current?.hidePopover(); trigger.current?.focus({ preventScroll: true }); }}>
       <NavList.LeadingVisual><Icon /></NavList.LeadingVisual>
       {label}
       {key === 'comparar' && pinned.length > 0 && <NavList.TrailingVisual><CounterLabel>{pinned.length}</CounterLabel></NavList.TrailingVisual>}
@@ -46,7 +48,15 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme, child
         <img src={import.meta.env.BASE_URL + 'time00.svg'} alt="" width="45" height="29" />
         <span>Negado pelo Banco</span>
       </a>
-      <NavList className="rail-nav" aria-label="Páginas">{items()}</NavList>
+      <nav className="rail-nav" aria-label="Páginas">
+        <ul>{pages.map(([key, label], index) => {
+          const Icon = icons[index];
+          return <li key={key}><a className="rail-item" href={pageLink(key)} aria-current={active === key ? 'page' : undefined}>
+            <Icon /><span>{label}</span>
+            {key === 'comparar' && pinned.length > 0 && <CounterLabel>{pinned.length}</CounterLabel>}
+          </a></li>;
+        })}</ul>
+      </nav>
       <div className="rail-footer">
         <a href={repo} target="_blank" rel="noreferrer"><MarkGithubIcon /> GitHub <ArrowUpRightIcon size={13} /></a>
         <span>Time00.dev · FATEC</span>
@@ -66,7 +76,7 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme, child
             {pages[activeIndex][1]}
           </Button>
           <div id={id} ref={menu} popover="auto" className="popover page-picker">
-            <NavList aria-label="Selecionar página">{items(true)}</NavList>
+            <NavList aria-label="Selecionar página">{mobileItems}</NavList>
           </div>
         </div>
         <div className="header-actions">

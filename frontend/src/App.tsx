@@ -86,7 +86,7 @@ function App() {
       pinned={pinnedRows} theme={theme} onTheme={toggleTheme}>
 
     <div className="page-scroll" id="page-scroll">
-    <main id="conteudo" tabIndex={-1} className="shell page">
+    <main id="conteudo" tabIndex={-1} className={route.page === 'geral' ? 'shell page page-overview' : 'shell page'}>
       {route.page !== 'sub' && <div className={route.page === 'geral' ? 'page-heading overview-heading' : 'page-heading'}>
         <div><h1>{({
           geral: 'Crédito por sub-região', subregioes: 'Sub-regiões',
@@ -131,17 +131,21 @@ function Compare({ rows, data, period, ids, explain }: {
   const activeIds = selected.map(row => row.id);
   return <>
     <section className="panel compare-controls">
-      <div className="compare-toolbar">
-        <CompareSearch rows={rows} period={period} activeIds={activeIds} />
-        {selected.length > 0 && <Button leadingVisual={CommentDiscussionIcon} onClick={() => explain(selected)}>
-          {selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}
-        </Button>}
-      </div>
+      <CompareSearch rows={rows} period={period} activeIds={activeIds} />
       <div className="comparison-chips">{selected.map(row => <a key={row.id} href={compareLink(period, activeIds.filter(id => id !== row.id))}
         aria-label={'Remover ' + geographic(row)}><TerritoryLabel row={row} /> <X size={14} /></a>)}</div>
     </section>
     {selected.length > 0 && <>
-      <section className="panel comparison-panel"><div className="panel-heading"><div><div className="heading-inline"><h2>Resultados</h2>{selected.some(row => row.legacyRisk) && <MethodLink period={period} />}</div><p>{selected.length} de 5 sub-regiões</p></div></div>
+      <section className="panel comparison-panel">
+        <div className="panel-heading comparison-heading">
+          <div><div className="heading-inline"><h2>Resultados</h2>
+            {selected.some(row => row.legacyRisk) && <MethodLink period={period} />}</div>
+            <p>{selected.length} de 5 sub-regiões</p>
+          </div>
+          <Button leadingVisual={CommentDiscussionIcon} onClick={() => explain(selected)}>
+            {selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}
+          </Button>
+        </div>
         <div className="table-scroll" tabIndex={0} aria-label="Indicadores comparados"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}><TerritoryLabel row={row} /></a></th>)}</tr></thead>
           <tbody>
             <tr className="comparison-score"><th scope="row">Score / 100</th>{selected.map(row => <td key={row.id}><strong>{number(row.score)}</strong></td>)}</tr>

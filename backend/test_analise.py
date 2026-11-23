@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import unittest
@@ -76,3 +77,18 @@ class TestAnalise(unittest.TestCase):
         for ajustes in ({"ANALYSIS_ACCESS_TOKEN": "curto"}, {"OPENAI_API_KEY": CODIGO_TESTE}):
             with mock.patch.dict(os.environ, ajustes):
                 self.assertEqual(self.post().status_code, 503)
+
+    def test_luna_e_o_modelo_padrao_com_raciocinio_baixo(self):
+        resultado = {
+            "status": "completed",
+            "output": [{"type": "message", "content": [{"type": "output_text", "text": "Resposta de teste."}]}],
+        }
+        with mock.patch.dict(os.environ, {"OPENAI_ANALYSIS_MODEL": ""}), mock.patch.object(analise, "urlopen") as abrir:
+            abrir.return_value.__enter__.return_value.read.return_value = json.dumps(resultado).encode()
+            resposta, modelo, _ = analise.explicacao_openai("chave-de-teste", CONSULTA["pergunta"], {})
+        corpo = json.loads(abrir.call_args.args[0].data)
+        self.assertEqual(resposta, "Resposta de teste.")
+        self.assertEqual(modelo, "gpt-6-luna")
+        self.assertEqual(corpo["model"], "gpt-6-luna")
+        self.assertEqual(corpo["reasoning"], {"effort": "low"})
+        self.assertEqual(corpo["max_output_tokens"], 720)

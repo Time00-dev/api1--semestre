@@ -19,7 +19,7 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
   const baseline = { risk: mean(plotted.map(row => row.risk)), potential: mean(plotted.map(row => row.potential)), count: plotted.length };
   const inspected = rows.find(row => row.id === preview) ?? active;
   const lead = ranking.slice(0, 5);
-  const shown = active && !lead.includes(active) ? [...lead, active] : lead;
+  const shown = active && !lead.includes(active) ? [...lead.slice(0, 4), active] : lead;
 
   return <>
     <dl className="overview-metrics">
