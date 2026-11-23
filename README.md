@@ -118,17 +118,14 @@ Para testar localmente, configure as variáveis abaixo no arquivo ignorado pelo 
 
 ```dotenv
 OPENAI_API_KEY=<chave do projeto>
-ANALYSIS_ACCESS_TOKEN=<credencial aleatória de acesso>
+ANALYSIS_REQUESTS_PER_MINUTE=20
 ANALYSIS_ALLOWED_ORIGIN=http://127.0.0.1:5178
 ```
 
 - Configure `OPENAI_API_KEY` somente no servidor. O padrão é `gpt-6-luna`, configurável em `OPENAI_ANALYSIS_MODEL`.
-- Defina `ANALYSIS_ACCESS_TOKEN` com um valor aleatório de pelo menos 32 caracteres, separado
-  da chave OpenAI e do token de carga. Por exemplo, gere com
-  `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Essa credencial é solicitada somente quando o servidor exige autenticação.
-- Ajuste `ANALYSIS_DAILY_LIMIT` e `ANALYSIS_MONTHLY_LIMIT` conforme os créditos disponíveis.
-  O contador compartilha a cota entre workers que usam o mesmo arquivo SQLite. Se houver mais
-  de um servidor, não habilite o endpoint sem uma cota compartilhada entre as instâncias.
+- Os visitantes podem fazer várias perguntas sem login. `ANALYSIS_REQUESTS_PER_MINUTE` controla
+  o total de chamadas numa janela móvel de 60 segundos, compartilhada entre os processos Flask
+  que usam o mesmo arquivo SQLite. Ao atingir o limite, a rota indica o tempo de espera.
 - Em publicação separada, defina `ANALYSIS_ALLOWED_ORIGIN` com a origem exata do frontend
   e confira que o proxy preserva o CORS e não acrescenta um segundo cabeçalho de origem.
 

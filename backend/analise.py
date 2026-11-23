@@ -1,14 +1,13 @@
 """Explicação de resultados agregados com dados selecionados no servidor."""
-import hmac
 import json
 import os
 import re
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timezone
-from math import hypot
+from math import ceil, hypot
 from pathlib import Path
 from statistics import mean, median
+from time import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -61,7 +60,9 @@ METODO = (
 
 
 class LimiteAtingido(Exception):
-    pass
+    def __init__(self, retry_after):
+        super().__init__(retry_after)
+        self.retry_after = retry_after
 
 
 def validar(dados):
@@ -165,24 +166,20 @@ def montar_contexto(base, mes, ids):
 
 
 def reservar_chamada():
-    """Reserva a cota em disco antes da chamada, inclusive entre processos Flask."""
-    dia = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    mes = dia[:7]
-    limites = (int(os.environ.get("ANALYSIS_DAILY_LIMIT", "25")),
-               int(os.environ.get("ANALYSIS_MONTHLY_LIMIT", "150")))
+    """Compartilha a janela móvel de 60 segundos entre os processos Flask."""
+    limite = int(os.environ.get("ANALYSIS_REQUESTS_PER_MINUTE", "20"))
+    if limite <= 0:
+        raise ValueError("Limite por minuto inválido")
     arquivo = Path(os.environ.get("ANALYSIS_QUOTA_PATH", str(Path(PASTA) / "analise.sqlite3")))
     with closing(sqlite3.connect(arquivo, timeout=3)) as conexao, conexao:
         conexao.execute("BEGIN IMMEDIATE")
-        conexao.execute("CREATE TABLE IF NOT EXISTS cotas (periodo TEXT PRIMARY KEY, total INTEGER NOT NULL)")
-        periodos = (dia, mes)
-        for periodo, limite in zip(periodos, limites):
-            atual = conexao.execute("SELECT total FROM cotas WHERE periodo = ?", (periodo,)).fetchone()
-            if limite <= (atual[0] if atual else 0):
-                raise LimiteAtingido
-        conexao.executemany(
-            "INSERT INTO cotas VALUES (?, 1) ON CONFLICT(periodo) DO UPDATE SET total = total + 1",
-            ((periodo,) for periodo in periodos),
-        )
+        agora = time()
+        conexao.execute("CREATE TABLE IF NOT EXISTS chamadas_analise (instante REAL NOT NULL)")
+        conexao.execute("DELETE FROM chamadas_analise WHERE instante <= ?", (agora - 60,))
+        total, primeira = conexao.execute("SELECT COUNT(*), MIN(instante) FROM chamadas_analise").fetchone()
+        if total >= limite:
+            raise LimiteAtingido(max(1, ceil(primeira + 60 - agora)))
+        conexao.execute("INSERT INTO chamadas_analise VALUES (?)", (agora,))
 
 
 def explicacao_openai(chave, pergunta, contexto):
@@ -223,7 +220,8 @@ def permitir_origem(resposta):
     if origem and request.headers.get("Origin") == origem:
         resposta.headers["Access-Control-Allow-Origin"] = origem
         resposta.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        resposta.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        resposta.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resposta.headers["Access-Control-Expose-Headers"] = "Retry-After"
     return resposta
 
 
@@ -236,19 +234,22 @@ def analisar():
     if request.method == "OPTIONS":
         return "", 204
     chave = os.environ.get("OPENAI_API_KEY", "").strip()
-    acesso = os.environ.get("ANALYSIS_ACCESS_TOKEN", "").strip()
-    if not chave or len(acesso) < 32 or hmac.compare_digest(acesso.encode(), chave.encode()):
+    if not chave:
         return jsonify(erro="A geração por IA ainda não foi habilitada neste servidor. Os resultados da base seguem disponíveis."), 503
-    recebido = request.headers.get("Authorization", "")
-    if not hmac.compare_digest(recebido.encode(), ("Bearer " + acesso).encode()):
-        return jsonify(erro="Informe o código de acesso da equipe para usar a IA."), 401
     request.max_content_length = 4096
     consulta = validar(request.get_json(silent=True))
     if consulta is None:
         return jsonify(erro="Informe uma competência, de uma a cinco sub-regiões e uma pergunta de até 500 caracteres."), 400
     mes, ids, pergunta = consulta
-    if chave in pergunta or acesso in pergunta:
+    if chave in pergunta:
         return jsonify(erro="Retire as credenciais da pergunta e tente novamente."), 400
+    try:
+        reservar_chamada()
+    except LimiteAtingido as erro:
+        return jsonify(erro="Muitas análises neste minuto."), 429, {"Retry-After": str(erro.retry_after)}
+    except (OSError, ValueError, sqlite3.Error) as erro:
+        current_app.logger.warning("Limite de análise indisponível: %s", type(erro).__name__)
+        return jsonify(erro="Não foi possível gerar a explicação agora."), 502
     try:
         contexto = montar_contexto(buscar_base(mes), mes, ids)
     except Exception as erro:
@@ -257,11 +258,8 @@ def analisar():
     if len(contexto["resultados"]) != len(ids):
         return jsonify(erro="Há sub-regiões fora da base para esta competência."), 404
     try:
-        reservar_chamada()
         resumo, modelo, uso = explicacao_openai(chave, pergunta, contexto)
-    except LimiteAtingido:
-        return jsonify(erro="O limite de uso da IA foi atingido. O painel continua disponível."), 429
-    except (OSError, ValueError, KeyError, sqlite3.Error) as erro:
+    except (OSError, ValueError, KeyError) as erro:
         current_app.logger.warning("Análise indisponível: %s", type(erro).__name__)
         return jsonify(erro="Não foi possível gerar a explicação agora."), 502
     current_app.logger.info("Análise IA: modelo=%s entrada=%s saída=%s", modelo,
