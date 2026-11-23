@@ -1921,6 +1921,12 @@
   color: var(--accent);
 }
 
+.analysis-answer .answer-scope {
+  margin-block-start: 8px;
+  color: var(--muted);
+  font-size: 0.81rem;
+}
+
 @media (max-width: 620px) {
   .site-footer .footer-credit {
     display: none;

@@ -133,6 +133,17 @@ class TestAnalise(unittest.TestCase):
         self.assertEqual([item["risco"] for item in grafico["valores"]], [1.19, 3.10])
         self.assertIsNone(analise.destacar_comparacao("nenhuma", contexto))
 
+    def test_score_de_um_territorio_compara_os_dois_eixos_com_as_medias(self):
+        contexto = {
+            "resultados": [{"id": "SP-12", "score": 68.84, "risco_no_grafico": 3, "oportunidade_no_grafico": 4.18}],
+            "referencia_do_grafico": {"sub_regioes_no_grafico": 104,
+                                     "risco": {"media": 3.15}, "oportunidade": {"media": 3.52}},
+        }
+        self.assertEqual(analise.destacar_comparacao("score", contexto)["valores"], [
+            {"id": "SP-12", "risco": 3, "oportunidade": 4.18},
+            {"id": "media", "risco": 3.15, "oportunidade": 3.52},
+        ])
+
     def test_reutiliza_base_publicada_e_repete_uma_vez_se_a_fonte_demorar(self):
         resposta = mock.MagicMock()
         resposta.__enter__.return_value.read.return_value = json.dumps(BASE).encode()

@@ -126,24 +126,34 @@ function formatAnswer(text: string, rows: Row[]) {
 
 function AnalysisComparison({ comparison, rows }: { comparison: Comparison; rows: Row[] }) {
   const score = comparison.tipo === 'score';
+  const baseline = comparison.valores.find(value => value.id === 'media');
+  const selected = comparison.valores.find(value => value.id !== 'media');
+  const riskGain = baseline?.risco != null && selected?.risco != null ? baseline.risco - selected.risco : 0;
+  const opportunityGain = baseline?.oportunidade != null && selected?.oportunidade != null
+    ? selected.oportunidade - baseline.oportunidade : 0;
   return <div className="answer-comparison">
     {score && comparison.diferenca != null && <p className="answer-difference">
       <strong>{number(comparison.diferenca)}</strong> pontos de diferença no score
     </p>}
     {score && <p className="answer-rule">
-      Risco menor melhora a capacidade de crédito, que pesa mais no cálculo do score que a oportunidade.
+      {riskGain > 0 && riskGain < opportunityGain
+        ? `A oportunidade está ${number(opportunityGain)} acima da média. O risco está só ${number(riskGain)} abaixo e tem mais peso no score.`
+        : 'Risco menor melhora a capacidade de crédito, que pesa mais no cálculo do score que a oportunidade.'}
     </p>}
-    <ul className="answer-values" aria-label={score ? 'Scores comparados' : 'Dados do gráfico comparados'}>
+    <ul className="answer-values" aria-label={score && !baseline ? 'Scores comparados' : 'Risco e oportunidade comparados'}>
       {comparison.valores.map(value => {
         const row = rows.find(item => item.id === value.id);
         return <li key={value.id}>
           <span className="answer-place">{row ? territoryName(row) : value.id === 'media' ? 'Média do painel' : value.id}</span>
           {row && <span className="answer-code">{geographic(row)}</span>}
-          {score && <strong className="answer-score">{number(value.score)}</strong>}
+          {score && value.score != null && <strong className="answer-score">{number(value.score)}</strong>}
           {value.risco != null && <span>Risco <b>{number(value.risco)}</b></span>}
           {value.oportunidade != null && <span>Oportunidade <b>{number(value.oportunidade)}</b></span>}
         </li>;
       })}
     </ul>
+    {score && baseline && <p className="answer-scope">
+      O score cobre o prefixo de CEP. Os indicadores de oportunidade são estaduais.
+    </p>}
   </div>;
 }

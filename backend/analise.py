@@ -36,12 +36,23 @@ maior e qual diferença nos dados ajuda mais a entender isso. Identifique cada p
 pelo seu id (como RJ-20). A interface troca esses ids pelos nomes de referência. O score
 pertence ao ponto, e nunca ao estado ou à macrorregião inteira. Exemplo de tom:
 "RJ-20 tem score maior. O risco é bem menor, e a oportunidade é parecida."
+Se a pergunta é por que um ponto tem determinado score, diga o que ajuda e o que o limita
+em relação à referência da base. Se a pergunta sugere um fator que o painel não mede diretamente,
+responda a essa parte logo no início e conecte a explicação aos fatores que entram no cálculo.
+Exemplos de fatores que não entram diretamente: ser polo tecnológico, ter universidades ou
+ter muitas empresas. Maturidade Pix e demografia são notas estaduais, não métricas da cidade.
+Compare com a média antes de classificar risco ou oportunidade como alto ou baixo. Se o risco
+está só um pouco abaixo da média e a oportunidade está bem acima, diga que o ganho em
+oportunidade ajuda, mas a vantagem pequena no risco limita o score porque o risco tem mais peso.
+Evite repetir o score, a posição e a mediana se a pergunta pede o motivo, pois o painel já exibe
+o score e o ranking. Foque no "por quê".
 Risco menor ajuda a explicar um score mais alto pela metodologia. A posição no gráfico não
 prova a causa nem permite calcular quanto cada indicador contribuiu para o score. Mencione
 limitações em "detalhes" se forem pedidas ou indispensáveis. Use a média ou pontos próximos
 para a pergunta. Limite-se a dados agregados e não recomende crédito individual.
-Marque comparacao como "score" se a pergunta compara scores, "grafico" se compara pontos, risco
-ou oportunidade, e "nenhuma" se os valores lado a lado não ajudam. Na recusa, use "nenhuma".
+Marque comparacao como "score" se a pergunta pede para explicar ou comparar scores, "grafico"
+se compara pontos, risco ou oportunidade, e "nenhuma" se os valores lado a lado não ajudam.
+Na recusa, use "nenhuma".
 """.strip()
 FORA_DO_ESCOPO = "Posso ajudar com os indicadores, o ranking e a metodologia deste painel de crédito territorial."
 FORMATO_RESPOSTA = {
@@ -209,6 +220,16 @@ def destacar_comparacao(tipo, contexto):
     if tipo not in ("score", "grafico"):
         return None
     registros = contexto["resultados"]
+    if tipo == "score" and len(registros) == 1:
+        item, = registros
+        referencia = contexto["referencia_do_grafico"]
+        risco, oportunidade = item["risco_no_grafico"], item["oportunidade_no_grafico"]
+        if risco is not None and oportunidade is not None and referencia["sub_regioes_no_grafico"] > 1:
+            return {"tipo": tipo, "valores": [
+                {"id": item["id"], "risco": risco, "oportunidade": oportunidade},
+                {"id": "media", "risco": referencia["risco"]["media"],
+                 "oportunidade": referencia["oportunidade"]["media"]},
+            ]}
     if tipo == "score" and len(registros) == 2 and all(
         type(item.get("score")) in (int, float) and 0 <= item["score"] <= 100 for item in registros
     ):
