@@ -5,6 +5,7 @@ import { MetricHistory } from './MetricHistory';
 import { geographic, indicators, month, note, number, potentialKeys, previousObservation, rank, riskKeys,
   scoreDifference, signedNumber, type Dataset, type Indicator, type Row } from './data';
 import { compareLink, url } from './navigation';
+import { territoryName } from './territorySearch';
 
 export function TerritoryDetail({ row, data, period, changePeriod, explain, rows }: {
   row?: Row; data: Dataset; period: string; changePeriod: (value: string) => void;
@@ -22,7 +23,7 @@ export function TerritoryDetail({ row, data, period, changePeriod, explain, rows
 
   return <>
     <div className="page-heading territory-heading">
-      <div><h1>{geographic(row)}</h1><p>{row.name !== geographic(row) ? row.name + ' · ' : ''}{row.regiao}</p></div>
+      <div><h1>{territoryName(row)}</h1><p>{geographic(row)} · {row.regiao}</p></div>
       <Period months={data.months} value={period} set={changePeriod} />
     </div>
 

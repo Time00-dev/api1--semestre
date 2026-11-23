@@ -1,8 +1,8 @@
 import type { Row } from './data';
 
-const states: Record<string, string> = {
+export const states: Record<string, string> = {
   AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia', CE: 'Ceará',
-  DF: 'Distrito Federal Brasília', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão',
+  DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão',
   MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais', PA: 'Pará',
   PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí', RJ: 'Rio de Janeiro',
   RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul', RO: 'Rondônia', RR: 'Roraima',
@@ -11,6 +11,16 @@ const states: Record<string, string> = {
 
 // Prefixos de localidades consultadas no Anexo 3–SPI dos Correios.
 const cities: Record<string, string[]> = {
+  // Correios: https://saladeimprensa.correios.com.br/arquivos/6993
+  'RJ-20': ['Rio de Janeiro'],
+  'RJ-21': ['Rio de Janeiro'],
+  'RJ-22': ['Rio de Janeiro'],
+  'RJ-23': ['Rio de Janeiro', 'Angra dos Reis'],
+  'RJ-24': ['Niterói', 'São Gonçalo'],
+  'RJ-25': ['Duque de Caxias', 'São João de Meriti', 'Petrópolis', 'Magé', 'Teresópolis'],
+  'RJ-26': ['Nova Iguaçu', 'Belford Roxo', 'Nilópolis'],
+  // https://www2.correios.com.br/institucional/licit_compras_contratos/licitacoes/anexos/EDI_CP000001_2022_133459.pdf
+  'RJ-28': ['Nova Friburgo'],
   'SP-12': ['São José dos Campos', 'Jacareí', 'Taubaté', 'Campos do Jordão', 'Tremembé'],
   'SP-13': ['Campinas', 'Jundiaí', 'Piracicaba', 'Rio Claro', 'Sumaré', 'São João da Boa Vista'],
   'SP-14': ['Ribeirão Preto', 'Jaboticabal', 'Sertãozinho'],
@@ -32,7 +42,7 @@ export function searchTerritories(rows: Row[], query: string): Row[] {
 
   return rows.filter(row => {
     if (state && row.uf !== state) return false;
-    const base = [row.uf, states[row.uf], row.regiao, row.name].join(' ');
+    const base = [row.uf, states[row.uf], row.regiao, row.name, row.uf === 'DF' ? 'Brasília' : ''].join(' ');
     const names = [base, ...(cities[row.id] ?? []).map(city => base + ' ' + city)];
     return names.some(name => {
       const tokens = words(name);
@@ -50,4 +60,8 @@ export function matchedCity(row: Row, query: string): string | undefined {
     const tokens = words(city);
     return terms.every(term => tokens.some(token => token.startsWith(term)));
   });
+}
+
+export function territoryName(row: Row, query = ''): string {
+  return row.nome_sub_regiao?.trim() || matchedCity(row, query) || cities[row.id]?.[0] || states[row.uf] || row.uf;
 }

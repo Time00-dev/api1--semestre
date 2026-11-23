@@ -4,6 +4,8 @@ import { lazy, useState } from 'react';
 import { MethodLink } from './Controls';
 import { geographic, mean, number, type Row } from './data';
 import { compareLink, url } from './navigation';
+import { TerritoryLabel } from './TerritoryLabel';
+import { territoryName } from './territorySearch';
 import './Overview.css';
 
 const RiskPlot = lazy(() => import('./Charts').then(module => ({ default: module.RiskPlot })));
@@ -30,12 +32,13 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
     <div className="overview-board">
       {active && <section className="overview-selection" aria-labelledby="selected-territory">
         <div className="overview-selection-head" aria-live="polite">
-          <div><h2 id="selected-territory">{geographic(active)}</h2><p>{active.faixa || active.regiao}</p></div>
+          <div><h2 id="selected-territory">{territoryName(active)}</h2><p>{geographic(active)}</p></div>
           <div className="overview-score">
             <span>Score</span>
             <div><strong>{number(active.score)}</strong>{active.score != null && <small> / 100</small>}</div>
           </div>
         </div>
+        {active.faixa && <p className="overview-band">{active.faixa}</p>}
         <dl className="overview-territory-metrics">
           <div><dt>Posição</dt><dd>{active.ranking == null ? '—' : active.ranking + 'º'}</dd></div>
           <div><dt>Risco</dt><dd>{number(active.risk)}</dd></div>
@@ -64,7 +67,7 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
               <th scope="col" className="numeric">Oportunidade</th><th scope="col" className="numeric">Score</th></tr></thead>
             <tbody>{rows.map(row => <tr key={row.id} className={row.id === active?.id ? 'current-row' : ''}>
               <th scope="row"><button className="table-link" aria-pressed={row.id === active?.id}
-                onClick={() => select(row.id)}>{geographic(row)}</button></th>
+                onClick={() => select(row.id)}><TerritoryLabel row={row} /></button></th>
               <td className="numeric">{number(row.risk)}</td><td className="numeric">{number(row.potential)}</td>
               <td className="numeric">{number(row.score)}</td>
             </tr>)}</tbody>
@@ -75,7 +78,7 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
           <RiskPlot rows={plotted} baseline={baseline} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
           <p className="overview-empty">Sem notas de risco e oportunidade nesta competência.</p>}
         {!showTable && inspected && <div className="overview-readout">
-          <strong>{geographic(inspected)}</strong>
+          <TerritoryLabel row={inspected} />
           <span>Risco <b>{number(inspected.risk)}</b></span>
           <span>Oportunidade <b>{number(inspected.potential)}</b></span>
         </div>}
@@ -94,7 +97,7 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
               aria-pressed={selected} onMouseEnter={() => setPreview(row.id)}
               onFocus={() => setPreview(row.id)} onBlur={() => setPreview('')}
               onClick={() => { setPreview(''); select(row.id); }}>
-              <span>{row.ranking == null ? '—' : row.ranking + 'º'}</span><strong>{geographic(row)}</strong>
+              <span>{row.ranking == null ? '—' : row.ranking + 'º'}</span><TerritoryLabel row={row} />
               {selected ? <CheckIcon aria-hidden="true" /> : <b>{number(row.score)}</b>}
             </button>;
           })}

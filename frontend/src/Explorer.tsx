@@ -3,7 +3,8 @@ import { Button, Checkbox, CounterLabel, FormControl, Pagination, Select, TextIn
 import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, GitCompareIcon, SearchIcon, XIcon } from '@primer/octicons-react';
 import { geographic, number, regions, type Row } from './data';
 import { compareLink, url } from './navigation';
-import { matchedCity, searchTerritories } from './territorySearch';
+import { searchTerritories, territoryName } from './territorySearch';
+import { TerritoryLabel } from './TerritoryLabel';
 
 type SortKey = 'territory' | 'ranking' | 'score' | 'risk' | 'potential';
 type Filters = { query: string; region: string; uf: string };
@@ -27,7 +28,7 @@ export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelec
   const filtered = rows.filter(row => (!region || row.regiao === region) && (!uf || row.uf === uf));
   const shown = searchTerritories(filtered, query).sort((a, b) => {
     const direction = sort.descending ? -1 : 1;
-    if (sort.key === 'territory') return a.id.localeCompare(b.id) * direction;
+    if (sort.key === 'territory') return (territoryName(a).localeCompare(territoryName(b), 'pt-BR') || a.id.localeCompare(b.id)) * direction;
     const av = a[sort.key], bv = b[sort.key];
     if (av == null) return bv == null ? a.id.localeCompare(b.id) : 1;
     if (bv == null) return -1;
@@ -101,13 +102,11 @@ export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelec
           </tr></thead>
           <tbody>{shown.slice(start, start + pageSize).map(row => {
             const checked = selected.includes(row.id);
-            const city = matchedCity(row, query);
             return <tr key={row.id} className={checked ? 'current-row' : undefined}>
               <td className="check-column"><label className="check-target">
                 <Checkbox aria-label={'Comparar ' + geographic(row)} checked={checked} disabled={selected.length >= 5 && !checked} onChange={() => toggle(row.id)} />
               </label></td>
-              <th scope="row"><a href={url('sub', period, row.id)}>{geographic(row)}</a>{city && <small className="search-city">CEP de {city}</small>}
-                {row.name !== geographic(row) && <small className="territory-alias">{row.name}</small>}
+              <th scope="row"><a href={url('sub', period, row.id)}><TerritoryLabel row={row} query={query} /></a>
                 <small className="mobile-data">Risco {number(row.risk)} · Oport. {number(row.potential)}</small>
               </th>
               <td className="secondary-column">{row.regiao}</td>

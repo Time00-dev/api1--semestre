@@ -1,6 +1,7 @@
 import { SegmentedControl } from '@primer/react';
 import { useState } from 'react';
 import { Trend } from './Charts';
+import { territoryName } from './territorySearch';
 import { geographic, month, number, type Dataset, type Row } from './data';
 
 const metrics = [
@@ -15,7 +16,7 @@ export function MetricHistory({ data, period, rows }: { data: Dataset; period: s
   const periods = data.months.filter(m => m <= period).slice(-12);
   const lines = rows.map(row => ({
     id: row.id,
-    label: geographic(row),
+    label: territoryName(row) + ' · ' + geographic(row),
     values: periods.map(m => data.byMonth.get(m)?.find(entry => entry.id === row.id)?.[current.key] ?? null),
   }));
   const hasData = lines.some(line => line.values.some(value => value !== null));

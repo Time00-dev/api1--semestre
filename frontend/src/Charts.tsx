@@ -3,6 +3,7 @@ import { Chart as ChartJS, ScatterController, LineController, LinearScale, Categ
   PointElement, LineElement, Tooltip, Legend, Filler, type Plugin } from 'chart.js';
 import { Line, Scatter } from 'react-chartjs-2';
 import { useTheme } from './theme';
+import { territoryName } from './territorySearch';
 import { geographic, month, number, regions, type Row } from './data';
 ChartJS.register(ScatterController, LineController, LinearScale, CategoryScale, PointElement, LineElement, Tooltip, Legend, Filler);
 ChartJS.defaults.font.family = 'IBM Plex Sans, system-ui, sans-serif';
@@ -145,7 +146,10 @@ export function RiskPlot({ rows, baseline, selected, preview, onPreview, onSelec
           tooltip: {
             backgroundColor: palette.tooltip,
             callbacks: {
-              title: ([item]) => geographic(data.datasets[item.datasetIndex].data[item.dataIndex].row),
+              title: ([item]) => {
+                const row = data.datasets[item.datasetIndex].data[item.dataIndex].row;
+                return territoryName(row) + ' · ' + geographic(row);
+              },
               label: item => [
                 'Risco ' + number(item.parsed.x) + ' · Oportunidade ' + number(item.parsed.y),
                 'Score / 100: ' + number(data.datasets[item.datasetIndex].data[item.dataIndex].row.score),

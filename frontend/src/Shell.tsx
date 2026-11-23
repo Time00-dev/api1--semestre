@@ -78,10 +78,10 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme, child
     {children}
     <footer className="site-footer">
       <div className="shell">
-        <span>Time00.dev · FATEC · Aprendizagem por Projetos Integrados</span>
+        <span className="footer-credit">Time00.dev · FATEC</span>
         <nav className="footer-actions" aria-label="Informações do painel">
           <a className="footer-repo" href={repo} target="_blank" rel="noreferrer"><MarkGithubIcon /> GitHub</a>
-          <a href={url('metodologia', period)}><BookIcon /> Fontes e metodologia</a>
+          <a href={url('metodologia', period)}><BookIcon /> Metodologia</a>
           <Button ref={shareTrigger} variant="invisible" leadingVisual={() => <QrCode size={16} />}
             onClick={() => setSharing(true)} aria-label="Compartilhar painel por QR Code">QR Code</Button>
         </nav>

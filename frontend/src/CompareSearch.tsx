@@ -3,7 +3,8 @@ import { PlusIcon, SearchIcon } from '@primer/octicons-react';
 import { useRef, useState } from 'react';
 import { geographic, type Row } from './data';
 import { compareLink } from './navigation';
-import { matchedCity, searchTerritories } from './territorySearch';
+import { searchTerritories, territoryName } from './territorySearch';
+import { TerritoryLabel } from './TerritoryLabel';
 
 export function CompareSearch({ rows, period, activeIds }: { rows: Row[]; period: string; activeIds: string[] }) {
   const [query, setQuery] = useState('');
@@ -12,7 +13,7 @@ export function CompareSearch({ rows, period, activeIds }: { rows: Row[]; period
   const available = rows.filter(row => !activeIds.includes(row.id));
   const hits = searchTerritories(available, query).sort((a, b) => a.id.localeCompare(b.id));
   const searching = !!query.trim();
-  const shown = searching ? hits : hits.slice(0, 5);
+  const shown = searching ? hits : [];
 
   return <div className="compare-search">
     <FormControl>
@@ -32,9 +33,8 @@ export function CompareSearch({ rows, period, activeIds }: { rows: Row[]; period
       : 'Sem resultados. Tente a UF ou os dois primeiros dígitos do CEP.'}</p>}
     {shown.length > 0 && <ul className="compare-search-results" aria-label="Sub-regiões disponíveis">
       {shown.map(row => {
-        const city = matchedCity(row, query);
         return <li key={row.id}><Button as="a" variant="invisible" alignContent="start" trailingVisual={PlusIcon}
-          aria-label={'Adicionar ' + geographic(row) + (city ? ' · ' + city : '')}
+          aria-label={'Adicionar ' + geographic(row) + ' · ' + territoryName(row, query)}
           href={compareLink(period, [...activeIds, row.id])}
           onClick={event => {
             if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
@@ -42,7 +42,7 @@ export function CompareSearch({ rows, period, activeIds }: { rows: Row[]; period
               field.current?.focus({ preventScroll: true });
             }
           }}>
-          <strong>{geographic(row)}</strong><span>{city ? ' · ' + city : ' · ' + row.regiao}</span>
+          <TerritoryLabel row={row} query={query} />
         </Button></li>;
       })}
     </ul>}

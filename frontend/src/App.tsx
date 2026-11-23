@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Database, X } from 'lucide-react';
+import { ArrowUpRight, Database, X } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BaseStyles, Button, FormControl, Select, SkeletonBox } from '@primer/react';
 import { ThemeProvider } from '@primer/react/next';
@@ -10,6 +10,8 @@ import { MethodLink, Period } from './Controls';
 import { Shell } from './Shell';
 import { Overview } from './Overview';
 import { CompareSearch } from './CompareSearch';
+import { TerritoryLabel } from './TerritoryLabel';
+import { states, territoryName } from './territorySearch';
 import { ThemeContext, useThemePreference } from './theme';
 
 const Explorer = lazy(() => import('./Explorer').then(module => ({ default: module.Explorer })));
@@ -70,7 +72,7 @@ function App() {
       element?.focus({ preventScroll: true });
       element?.scrollIntoView({ block: 'start' });
     } else if (previousRoute.current !== routeId) {
-      window.scrollTo({ top: 0 });
+      document.getElementById('page-scroll')?.scrollTo({ top: 0 });
       document.getElementById('conteudo')?.focus({ preventScroll: true });
     }
     previousRoute.current = routeId;
@@ -80,9 +82,10 @@ function App() {
     <ThemeProvider contextOnly colorMode={theme} dayScheme="light" nightScheme="dark_dimmed">
     <BaseStyles className="workspace">
     <a href="#conteudo" className="skip" onClick={event => { event.preventDefault(); document.getElementById('conteudo')?.focus(); }}>Pular para o conteúdo</a>
-    <Shell page={route.page} detailLabel={territory && geographic(territory)} period={period}
+    <Shell page={route.page} detailLabel={territory && territoryName(territory)} period={period}
       pinned={pinnedRows} theme={theme} onTheme={toggleTheme}>
 
+    <div className="page-scroll" id="page-scroll">
     <main id="conteudo" tabIndex={-1} className="shell page">
       {route.page !== 'sub' && <div className={route.page === 'geral' ? 'page-heading overview-heading' : 'page-heading'}>
         <div><h1>{({
@@ -112,6 +115,7 @@ function App() {
           initial={route.query.get('i')} />}
       </Suspense>}
     </main>
+    </div>
     </Shell>
     {analysis && <Suspense fallback={null}><Assistant key={analysis.period + analysis.rows.map(row => row.id).join(',')}
       allRows={rows} rows={analysis.rows} period={analysis.period} close={() => setAnalysis(undefined)} /></Suspense>}
@@ -134,11 +138,11 @@ function Compare({ rows, data, period, ids, explain }: {
         </Button>}
       </div>
       <div className="comparison-chips">{selected.map(row => <a key={row.id} href={compareLink(period, activeIds.filter(id => id !== row.id))}
-        aria-label={'Remover ' + geographic(row)}>{geographic(row)} <X size={14} /></a>)}</div>
+        aria-label={'Remover ' + geographic(row)}><TerritoryLabel row={row} /> <X size={14} /></a>)}</div>
     </section>
     {selected.length > 0 && <>
       <section className="panel comparison-panel"><div className="panel-heading"><div><div className="heading-inline"><h2>Resultados</h2>{selected.some(row => row.legacyRisk) && <MethodLink period={period} />}</div><p>{selected.length} de 5 sub-regiões</p></div></div>
-        <div className="table-scroll" tabIndex={0} aria-label="Indicadores comparados"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}>{geographic(row)}</a></th>)}</tr></thead>
+        <div className="table-scroll" tabIndex={0} aria-label="Indicadores comparados"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}><TerritoryLabel row={row} /></a></th>)}</tr></thead>
           <tbody>
             <tr className="comparison-score"><th scope="row">Score / 100</th>{selected.map(row => <td key={row.id}><strong>{number(row.score)}</strong></td>)}</tr>
             <tr><th scope="row">Posição no ranking</th>{selected.map(row => <td key={row.id}>{row.ranking == null ? '—' : row.ranking + 'º'}</td>)}</tr>
@@ -189,7 +193,7 @@ function Indicators({ rows, data, period, initial }: { rows: Row[]; data: Datase
       <section className="panel"><div className="panel-heading"><div><h2>{name}</h2><p>{descending ? '15 maiores notas' : '15 menores notas'} · escala de 1 a 5</p></div>
         <Button leadingVisual={ArrowDownIcon} onClick={() => setDescending(v => !v)}>Inverter ordem</Button></div>
         {shown.length ? <div className="table-scroll"><table><thead><tr><th>Território</th><th>Região</th><th>Nota</th></tr></thead>
-          <tbody>{shown.map(row => <tr key={row.id}><th>{scope === 'UF' ? row.uf : <a href={url('sub', period, row.id)}>{geographic(row)}</a>}</th><td>{row.regiao}</td><td>{number(note(row, field))}</td></tr>)}</tbody></table></div>
+          <tbody>{shown.map(row => <tr key={row.id}><th>{scope === 'UF' ? (states[row.uf] || row.uf) : <a href={url('sub', period, row.id)}><TerritoryLabel row={row} /></a>}</th><td>{row.regiao}</td><td>{number(note(row, field))}</td></tr>)}</tbody></table></div>
           : <p className="inline-note">Sem valores disponíveis nesta competência.</p>}</section>
       <section className="panel indicator-history"><div className="panel-heading"><div><h2>Histórico por região</h2><p>Média das notas disponíveis em cada período</p></div></div>
         <Trend periods={periods} lines={regional} label={'Histórico regional de ' + name} />
@@ -202,9 +206,9 @@ function Indicators({ rows, data, period, initial }: { rows: Row[]; data: Datase
 
 function Method() {
   return <div className="method-grid">
-    <article className="panel method-document"><h2>Unidade geográfica</h2>
-      <p>A unidade de análise é a combinação de UF e dos dois primeiros dígitos do CEP. Os resultados são agregados por mês.</p>
-      <p>Os eixos usam notas de 1 a 5. O painel calcula médias simples das notas disponíveis em cada eixo. A média nacional no panorama considera as sub-regiões da base.</p>
+    <article className="panel method-document"><h2>Como os territórios são identificados</h2>
+      <p>A unidade de análise é a combinação de UF e dos dois primeiros dígitos do CEP. Os resultados são agregados por mês. Os nomes de localidades indicam referências postais. Um prefixo pode incluir vários municípios e os resultados abrangem a sub-região inteira.</p>
+      <p>Os eixos usam notas de 1 a 5. O painel calcula médias simples das notas disponíveis em cada eixo. A média do Panorama considera as sub-regiões da base com notas nos dois eixos.</p>
       <h2 id="method-score" tabIndex={-1}>Score de Oportunidade</h2><p>O notebook calcula o score de 0 a 100 combinando oportunidade e capacidade, com expoentes de 0,4 e 0,6. A posição é calculada no lote mensal pelo notebook.</p>
       <h2 id="method-fragilidade" tabIndex={-1}>Fragilidade da carteira</h2><p>A classificação D–H deixou de ser enviada pela fonte para os períodos a partir de janeiro de 2025. O painel exibe essa nota como ausente nesses meses. Alguns lotes publicados ainda incluem a nota histórica, que pode afetar o score e a classificação.</p>
       <p>A análise é territorial e acadêmica. Os indicadores se destinam ao estudo de crédito agregado.</p>
@@ -213,6 +217,7 @@ function Method() {
       <li><a href="https://olinda.bcb.gov.br/olinda/servico/scr_sub_regiao/versao/v1/documentacao" target="_blank" rel="noreferrer">Banco Central · SCR por sub-região <ArrowUpRight size={14} /></a><p>Dados de crédito por UF e prefixo de CEP.</p></li>
       <li><a href="https://www.bcb.gov.br/estabilidadefinanceira/estatisticaspix" target="_blank" rel="noreferrer">Banco Central · Estatísticas do Pix <ArrowUpRight size={14} /></a><p>Base para o indicador de maturidade Pix.</p></li>
       <li><a href="https://www.ibge.gov.br/cidades-e-estados" target="_blank" rel="noreferrer">IBGE · Dados demográficos <ArrowUpRight size={14} /></a><p>Indicadores demográficos e estaduais.</p></li>
+      <li><a href="https://www.correios.com.br/enviar/precisa-de-ajuda/tudo-sobre-cep" target="_blank" rel="noreferrer">Correios · Código de Endereçamento Postal <ArrowUpRight size={14} /></a><p>Referência para as localidades associadas aos prefixos.</p></li>
       <li><a href={notebook} target="_blank" rel="noreferrer">Notebook e cálculo do Time00.dev <ArrowUpRight size={14} /></a><p>Transformação, score, faixa e ranking.</p></li></ul></section>
   </div>;
 }
