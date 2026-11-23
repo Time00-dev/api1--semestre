@@ -4,7 +4,7 @@ import { BaseStyles, Button, ButtonGroup, FormControl, SegmentedControl, Select,
 import { ThemeProvider } from '@primer/react/next';
 import { ArrowDownIcon, ArrowRightIcon, CommentDiscussionIcon, GitCompareIcon, ListOrderedIcon } from '@primer/octicons-react';
 import { geographic, indicators, loadDataWithRetry, mean, month, note, number, potentialKeys,
-  rank, regions, riskKeys, series, type Dataset, type Indicator, type Row } from './data';
+  previousObservation, rank, regions, riskKeys, scoreDifference, signedNumber, type Dataset, type Indicator, type Row } from './data';
 import { compareLink, url, useRoute } from './navigation';
 import { MethodLink, Period } from './Controls';
 import { Shell } from './Shell';
@@ -14,11 +14,11 @@ const Explorer = lazy(() => import('./Explorer').then(module => ({ default: modu
 const Assistant = lazy(() => import('./Assistant').then(module => ({ default: module.Assistant })));
 const RiskPlot = lazy(() => import('./Charts').then(module => ({ default: module.RiskPlot })));
 const Trend = lazy(() => import('./Charts').then(module => ({ default: module.Trend })));
+const TerritoryDetail = lazy(() => import('./TerritoryDetail').then(module => ({ default: module.TerritoryDetail })));
+const MetricHistory = lazy(() => import('./MetricHistory').then(module => ({ default: module.MetricHistory })));
 
 const repo = 'https://github.com/Time00-dev/api1--semestre';
 const notebook = repo + '/blob/main/backend/GJ00_46.ipynb';
-const diff = (a?: number | null, b?: number | null) => a == null || b == null ? null : a - b;
-const change = (d: number | null) => d == null ? '—' : (d > 0 ? '+' : '') + number(d);
 
 function App() {
   const route = useRoute();
@@ -102,8 +102,8 @@ function App() {
           explain={() => active && openAnalysis([active])} />}
         {route.page === 'subregioes' && <Explorer key={period} rows={rows} period={period} queryParams={route.query}
           pinned={pinned} toggle={togglePinned} clearSelection={() => setPinned([])} />}
-        {route.page === 'sub' && <Detail row={territory} data={data} period={period}
-          months={months} changePeriod={changePeriod} explain={openAnalysis} rows={rows} />}
+        {route.page === 'sub' && <TerritoryDetail row={territory} data={data} period={period}
+          changePeriod={changePeriod} explain={openAnalysis} rows={rows} />}
         {route.page === 'comparar' && <Compare key={period + route.query.get('s')} rows={rows} data={data}
           period={period} ids={route.query.has('s') ? (route.query.get('s') || '').split(',') : pinnedRows}
           explain={openAnalysis} />}
@@ -146,10 +146,10 @@ function Overview({ rows, ranking, active, period, select, explain }: {
           </SegmentedControl>
         </div>
         {mode === 'gráfico' ? <RiskPlot rows={rows} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
-          <div className="table-scroll plot-table"><table><thead><tr><th>Sub-região</th><th>Risco</th><th>Oportunidade</th></tr></thead><tbody>
+          <div className="table-scroll plot-table"><table><thead><tr><th>Sub-região</th><th className="numeric">Risco</th><th className="numeric">Oportunidade</th><th className="numeric">Score / 100</th></tr></thead><tbody>
             {rows.map(row => <tr key={row.id} className={row.id === active?.id ? 'current-row' : ''}>
               <th scope="row"><button className="table-link" onClick={() => select(row.id)}>{geographic(row)}</button></th>
-              <td>{number(row.risk)}</td><td>{number(row.potential)}</td></tr>)}
+              <td className="numeric">{number(row.risk)}</td><td className="numeric">{number(row.potential)}</td><td className="numeric">{number(row.score)}</td></tr>)}
           </tbody></table></div>}
         {inspected && <div className="chart-caption">
           <div className="chart-readout"><span className="selected-point" /> <div><strong>{geographic(inspected)}</strong>
@@ -172,7 +172,10 @@ function Overview({ rows, ranking, active, period, select, explain }: {
           </button>)}
         </div>
         {active && <div className="ranking-selection">
-          <div className="ranking-selection-head"><div><h3>{geographic(active)}</h3><p>{active.faixa || active.regiao}</p></div></div>
+          <div className="ranking-selection-head">
+            <div><h3>{geographic(active)}</h3><p>{active.faixa || active.regiao}</p></div>
+            <div className="selected-score"><strong>{number(active.score)}</strong><span>Score / 100</span></div>
+          </div>
           <div className="result-actions">
             <Button as="a" className="ranking-ficha result-sheet" variant="primary" trailingVisual={ArrowRightIcon}
               href={url('sub', period, active.id)}>Abrir ficha</Button>
@@ -185,57 +188,12 @@ function Overview({ rows, ranking, active, period, select, explain }: {
   </>;
 }
 
-function Detail({ row, data, period, months, changePeriod, explain, rows }: {
-  row?: Row; data: Dataset; period: string; months: string[]; changePeriod: (v: string) => void;
-  explain: (rows: Row[]) => void; rows: Row[];
-}) {
-  if (!row) return <div className="empty"><h2>Sub-região indisponível nesta competência</h2>
-    <Period months={months} value={period} set={changePeriod} /><a href={url('subregioes', period)}>Voltar para sub-regiões</a></div>;
-  const history = series(data, period, row.id);
-  const ranked = rank(rows).length;
-  const prev = history.at(-2)?.row;
-  return <>
-    <div className="page-heading"><div><h1>{geographic(row)}</h1>
-      <p>{row.name !== geographic(row) ? row.name + ' · ' : ''}{row.regiao} · prefixo de CEP</p></div>
-      <Period months={months} value={period} set={changePeriod} /></div>
-    <div className="overview-strip">
-      <div><span>Score publicado <small>/ 100</small></span><strong>{number(row.score)}</strong></div>
-      <div><span>Posição publicada</span><strong>{row.ranking == null ? '—' : row.ranking + 'º'}{row.ranking != null && <small> / {ranked}</small>}</strong></div>
-      <div><span>Risco <small>/ 5</small></span><strong>{number(row.risk)}</strong></div>
-      <div><span>Oportunidade <small>/ 5</small></span><strong>{number(row.potential)}</strong></div>
-    </div>
-    <div className="detail-summary"><div><div className="heading-inline"><h2>{row.faixa || 'Faixa indisponível'}</h2>{row.legacyRisk && <MethodLink period={period} />}</div>
-      <p>Variação do score ante a competência anterior da base: <b>{change(diff(row.score, prev?.score))}</b> {row.operacoes != null && ' · ' + number(row.operacoes, 0) + ' operações'}{row.peso != null && ' · peso amostral ' + number(row.peso)}</p></div>
-      <div className="result-actions">
-        <Button variant="primary" leadingVisual={CommentDiscussionIcon} onClick={() => explain([row])}>Explicar com IA</Button>
-        <Button as="a" leadingVisual={GitCompareIcon} href={compareLink(period, [row.id])}>Comparar</Button>
-      </div></div>
-    <div className="detail-grid">
-      <section className="panel"><div className="panel-heading"><div><h2>Evolução do score</h2><p>Até 12 competências · escala de 0 a 100</p></div></div>
-        <Trend periods={history.map(p => p.period)} lines={[{ label: geographic(row), values: history.map(p => p.row?.score ?? null) }]} label="Evolução do score publicado" />
-        <details><summary>Valores do histórico</summary><div className="table-scroll"><table><thead><tr><th>Competência</th><th>Score</th><th>Inadimplência (nota)</th></tr></thead>
-          <tbody>{history.map(p => <tr key={p.period}><th>{month(p.period)}</th><td>{number(p.row?.score)}</td><td>{number(p.row && note(p.row, 'inadimplenciaReal'))}</td></tr>)}</tbody></table></div></details></section>
-      <section className="panel"><div className="panel-heading"><div><h2>Notas dos indicadores</h2><p>Escala de 1 a 5 · — significa ausência de dado</p></div></div>
-        <IndicatorList row={row} keys={riskKeys} title="Eixo I · Risco" />
-        <IndicatorList row={row} keys={potentialKeys} title="Eixo II · Oportunidade" />
-      </section>
-    </div>
-  </>;
-}
-
-function IndicatorList({ row, keys, title }: { row: Row; keys: Indicator[]; title: string }) {
-  return <div className="indicator-list"><h3>{title}</h3><dl>{keys.map(key => <div key={key}>
-    <dt>{indicators[key][0]} <small>{indicators[key][1]}</small></dt><dd>{number(note(row, key))}</dd>
-  </div>)}</dl></div>;
-}
-
 function Compare({ rows, data, period, ids, explain }: {
   rows: Row[]; data: Dataset; period: string; ids: string[]; explain: (rows: Row[]) => void;
 }) {
   const [candidate, setCandidate] = useState('');
   const selected = [...new Set(ids)].map(id => rows.find(row => row.id === id)).filter((row): row is Row => Boolean(row)).slice(0, 5);
   const activeIds = selected.map(row => row.id);
-  const chartHistory = selected.map(row => series(data, period, row.id));
   return <>
     <section className="panel compare-controls">
       <div className="filters"><FormControl disabled={selected.length >= 5}>
@@ -259,7 +217,9 @@ function Compare({ rows, data, period, ids, explain }: {
       <section className="panel comparison-panel"><div className="panel-heading"><div><div className="heading-inline"><h2>Resultados</h2>{selected.some(row => row.legacyRisk) && <MethodLink period={period} />}</div><p>{selected.length} de 5 sub-regiões</p></div></div>
         <div className="table-scroll"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}>{geographic(row)}</a></th>)}</tr></thead>
           <tbody>
-            <tr><th>Score publicado</th>{selected.map(row => <td key={row.id}><strong>{number(row.score)}</strong></td>)}</tr>
+            <tr className="comparison-score"><th scope="row">Score / 100</th>{selected.map(row => <td key={row.id}><strong>{number(row.score)}</strong></td>)}</tr>
+            <tr><th scope="row">Posição no ranking</th>{selected.map(row => <td key={row.id}>{row.ranking == null ? '—' : row.ranking + 'º'}</td>)}</tr>
+            <tr><th scope="row">Variação mensal</th>{selected.map(row => <td key={row.id}>{signedNumber(scoreDifference(row.score, previousObservation(data, period, row.id)?.row?.score))}</td>)}</tr>
             <tr><th>Faixa</th>{selected.map(row => <td key={row.id}>{row.faixa || '—'}</td>)}</tr>
             <tr><th>Risco médio</th>{selected.map(row => <td key={row.id}>{number(row.risk)}</td>)}</tr>
             <tr><th>Oportunidade média</th>{selected.map(row => <td key={row.id}>{number(row.potential)}</td>)}</tr>
@@ -268,13 +228,7 @@ function Compare({ rows, data, period, ids, explain }: {
             )}
           </tbody></table></div>
       </section>
-      <section className="panel comparison-panel"><div className="panel-heading"><div><h2>Evolução do score</h2><p>Até 12 competências · escala de 0 a 100</p></div></div>
-        <Trend periods={chartHistory[0].map(p => p.period)} lines={selected.map((row, i) => ({
-          label: geographic(row), values: chartHistory[i].map(p => p.row?.score ?? null),
-        }))} label="Histórico de scores das sub-regiões selecionadas" />
-        <details><summary>Valores do histórico</summary><div className="table-scroll"><table><thead><tr><th>Competência</th>{selected.map(row => <th key={row.id}>{geographic(row)}</th>)}</tr></thead>
-          <tbody>{chartHistory[0].map((item, index) => <tr key={item.period}><th>{month(item.period)}</th>{chartHistory.map((history, i) => <td key={selected[i].id}>{number(history[index].row?.score)}</td>)}</tr>)}</tbody></table></div></details>
-      </section>
+      <MetricHistory data={data} period={period} rows={selected} />
     </>}
   </>;
 }

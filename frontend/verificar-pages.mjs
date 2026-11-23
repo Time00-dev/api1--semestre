@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 const directory = process.argv[2] ? pathToFileURL(resolve(process.argv[2]) + sep) : new URL('./dist/', import.meta.url);
 const entries = await readdir(directory, { recursive: true, withFileTypes: true });
 const files = entries.filter(entry => !entry.isDirectory());
-const extensions = new Set(['.html', '.css', '.js', '.svg', '.woff', '.woff2']);
+const extensions = new Set(['.html', '.css', '.js', '.svg', '.png', '.woff', '.woff2']);
 const token = /\bsk-(?:(?:proj|svcacct|admin)-)?[\w-]{24,}\b/;
 for (const entry of files) {
   const extension = extname(entry.name);

@@ -34,6 +34,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - uses: actions/configure-pages@v5
       - run: npm ci
+      - run: npm test
       - name: Compilar painel
         env:
           VITE_DATA_URL: ${{ vars.PAGES_API_URL }}

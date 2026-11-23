@@ -1,10 +1,11 @@
 import { Breadcrumbs, Button, CounterLabel, NavList } from '@primer/react';
-import { ArrowUpRightIcon, BookIcon, ChevronDownIcon, HomeIcon, GitCompareIcon, GlobeIcon, GraphIcon, MoonIcon, SunIcon } from '@primer/octicons-react';
-import { useId, useRef } from 'react';
+import { ArrowUpRightIcon, BookIcon, ChevronDownIcon, HomeIcon, GitCompareIcon, GlobeIcon, GraphIcon, MoonIcon, ShareAndroidIcon, SunIcon } from '@primer/octicons-react';
+import { lazy, Suspense, useId, useRef, useState } from 'react';
 import { compareLink, pages, url, type Page } from './navigation';
 
 const repo = 'https://github.com/Time00-dev/api1--semestre';
 const icons = [HomeIcon, GlobeIcon, GitCompareIcon, GraphIcon, BookIcon];
+const SharePanel = lazy(() => import('./SharePanel').then(module => ({ default: module.SharePanel })));
 
 export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
   page: Page; detailLabel?: string; period: string; pinned: string[]; theme: 'light' | 'dark'; onTheme: () => void;
@@ -12,6 +13,8 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
   const id = useId();
   const menu = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const shareTrigger = useRef<HTMLButtonElement>(null);
+  const [sharing, setSharing] = useState(false);
   const active = page === 'sub' ? 'subregioes' : page;
   const activeIndex = pages.findIndex(([key]) => key === active);
   const CurrentIcon = icons[activeIndex];
@@ -62,11 +65,20 @@ export function Shell({ page, detailLabel, period, pinned, theme, onTheme }: {
             <NavList aria-label="Selecionar página">{items(true)}</NavList>
           </div>
         </div>
-        <Button className="theme-switch" onClick={onTheme} leadingVisual={theme === 'dark' ? SunIcon : MoonIcon}
-          aria-label={'Ativar ' + themeLabel.toLowerCase()}>
-          <span className="theme-label">{themeLabel}</span>
-        </Button>
+        <div className="header-actions">
+          <Button ref={shareTrigger} leadingVisual={ShareAndroidIcon} onClick={() => setSharing(true)} aria-label="Compartilhar painel por QR Code">
+            <span className="share-label">QR Code</span>
+          </Button>
+          <Button className="theme-switch" onClick={onTheme} leadingVisual={theme === 'dark' ? SunIcon : MoonIcon}
+            aria-label={'Ativar ' + themeLabel.toLowerCase()}>
+            <span className="theme-label">{themeLabel}</span>
+          </Button>
+        </div>
       </div>
     </header>
+    {sharing && <Suspense fallback={null}><SharePanel close={() => {
+      setSharing(false);
+      requestAnimationFrame(() => shareTrigger.current?.focus());
+    }} /></Suspense>}
   </>;
 }

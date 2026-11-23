@@ -104,7 +104,10 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
             backgroundColor: palette.tooltip,
             callbacks: {
               title: ([item]) => geographic(data.datasets[item.datasetIndex].data[item.dataIndex].row),
-              label: item => 'Risco ' + number(item.parsed.x) + ' · Oportunidade ' + number(item.parsed.y),
+              label: item => [
+                'Risco ' + number(item.parsed.x) + ' · Oportunidade ' + number(item.parsed.y),
+                'Score / 100: ' + number(data.datasets[item.datasetIndex].data[item.dataIndex].row.score),
+              ],
             },
           },
         },

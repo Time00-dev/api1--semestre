@@ -48,3 +48,12 @@ Objetivo. Em segundos, encontrar a competência e o território, interpretar o r
 A revisão usa Primer React para navegação, breadcrumb, botões, campos, opções de competência, alternância de visualização, seleção, paginação e carregamento. As tabelas HTML seguem a hierarquia do DataTable do Primer com números alinhados, cabeçalho de ordenação, ações de seleção e filtros nomeados. Busca, região e UF são preservados no link. No celular as colunas de apoio cedem lugar às notas essenciais na linha. A ficha é a ação principal da seleção do panorama. Os temas claro e dark dimmed usam os tokens oficiais com ciano como cor de ênfase da marca.
 
 Referências: [Primer DataTable](https://primer.style/product/components/data-table/), [Primer Filter](https://primer.style/product/scenario-patterns/filter/) e [Primer Theming](https://primer.style/product/getting-started/react/theming/).
+
+
+## Ficha, histórico e apresentação
+
+A ficha agora exibe o score publicado como primeira informação, com faixa, posição no ranking e variação em relação à observação anterior. Panorama, ficha e comparação leem a mesma normalização. O histórico permite alternar entre score, risco e oportunidade. O gráfico oferece acesso aos valores em tabela.
+
+O botão de compartilhamento abre um QR Code com o endereço público do Pages. O arquivo é estático e pode ser baixado para slides. Os códigos nas capturas de desktop e celular foram decodificados e conferidos. O endereço segue mostrando a versão ativa do Pages até que esta revisão seja publicada.
+
+Referências: [Primer Dialog](https://primer.style/product/components/dialog/) e [Primer Data Visualization](https://primer.style/product/ui-patterns/data-visualization/).

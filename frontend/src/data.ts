@@ -41,6 +41,16 @@ export const rank = (rows: Row[]) => rows.filter(row => validNumber(row.ranking)
 export const series = (data: Dataset, m: string, id: string) => data.months.filter(v => v <= m).slice(-12)
   .map(period => ({ period, row: data.byMonth.get(period)?.find(row => row.id === id) }));
 
+export function previousObservation(data: Dataset, period: string, id: string) {
+  const previous = data.months[data.months.indexOf(period) - 1];
+  return previous ? { period: previous, row: data.byMonth.get(previous)?.find(row => row.id === id) } : null;
+}
+
+export const scoreDifference = (now?: number | null, before?: number | null) =>
+  now == null || before == null ? null : now - before;
+
+export const signedNumber = (value: number | null) => value == null ? '—' : (value > 0 ? '+' : '') + number(value);
+
 export async function loadDataWithRetry(signal: AbortSignal): Promise<Dataset> {
   try {
     return await loadData(AbortSignal.any([signal, AbortSignal.timeout(6000)]));
@@ -61,13 +71,25 @@ async function loadData(signal: AbortSignal): Promise<Dataset> {
   if (!response.ok) throw new Error('A fonte respondeu com o status ' + response.status + '.');
   const data: { eixo_i?: Raw[]; eixo_ii?: Raw[] } = await response.json();
   if (!Array.isArray(data.eixo_i) || !Array.isArray(data.eixo_ii)) throw new Error('A fonte retornou um formato inesperado.');
+  return normalizeData(data.eixo_i, data.eixo_ii);
+}
+
+export function normalizeData(riskRows: Raw[], opportunityRows: Raw[]): Dataset {
   const items = new Map<string, Raw>();
   const names = new Map<string, string>();
-  for (const row of [...data.eixo_i, ...data.eixo_ii]) {
+  const publishedScore = (value: unknown) => validNumber(value) && value >= 0 && value <= 100 ? value : null;
+  const publishedRank = (value: unknown) => validNumber(value) && Number.isInteger(value) && value > 0 ? value : null;
+  for (const row of [...riskRows, ...opportunityRows]) {
     if (!/^\d{4}(0[1-9]|1[0-2])$/.test(row.ano_mes) || !/^[A-Z]{2}$/.test(row.uf) || !/^\d{2}$/.test(row.sub_regiao)) continue;
     const id = row.uf + '-' + row.sub_regiao;
     const key = row.ano_mes + '/' + id;
-    items.set(key, { ...items.get(key), ...row });
+    const prior = items.get(key);
+    items.set(key, {
+      ...prior, ...row,
+      score: publishedScore(prior?.score) ?? publishedScore(row.score),
+      ranking: publishedRank(prior?.ranking) ?? publishedRank(row.ranking),
+      faixa: prior?.faixa?.trim() || row.faixa?.trim() || null,
+    });
     if (row.nome_sub_regiao?.trim()) names.set(id, row.nome_sub_regiao.trim());
   }
   const byMonth = new Map<string, Row[]>();
