@@ -373,3 +373,109 @@
     font-size: 0.77rem;
   }
 }
+
+
+.overview-chart .chart-baseline {
+  flex: 1 0 100%;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-baseline b {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.overview-chart-table tfoot {
+  font-weight: 600;
+  background: var(--section);
+}
+
+@media (min-width: 841px) and (max-height: 900px) {
+  .page:has(.overview-board) {
+    padding-block: 16px;
+  }
+
+  .overview-heading {
+    min-height: 48px;
+    margin-block-end: 10px;
+  }
+
+  .overview-board {
+    --overview-pad: 15px;
+    grid-template-columns: minmax(0, 1.8fr) minmax(275px, 1fr);
+  }
+
+  .overview-metrics {
+    margin-block-end: 13px;
+  }
+
+  .overview-metrics > div {
+    padding: 8px 11px;
+    gap: 2px 8px;
+  }
+
+  .overview-chart-header {
+    margin-block-end: 10px;
+  }
+
+  .overview-chart :is(.scatter, .overview-chart-table) {
+    height: 273px;
+  }
+
+  .overview-selection-head {
+    min-height: 44px;
+  }
+
+  .overview-territory-metrics {
+    margin-block: 10px;
+    padding-block-start: 8px;
+  }
+
+  .overview-ranking-header {
+    margin-block-end: 6px;
+  }
+
+  .overview-rank-row {
+    min-height: 34px;
+  }
+
+  .overview-full-ranking[data-component="Button"] {
+    margin-block-start: 3px;
+    min-height: 34px;
+  }
+}
+
+@media (min-width: 841px) and (max-width: 1080px) {
+  .overview-heading h1 {
+    font-size: 2.45rem;
+  }
+
+  .overview-metrics > div {
+    display: grid;
+    align-content: start;
+  }
+
+  .overview-metrics dt {
+    min-height: 1.35em;
+  }
+}
+
+@media (min-width: 841px) and (max-width: 1080px) {
+  .overview-selection-head h2 {
+    font-size: 1.37rem;
+    white-space: nowrap;
+  }
+
+  .overview-selection-head {
+    align-items: baseline;
+  }
+
+  .overview-score strong {
+    font-size: 1.8rem;
+  }
+
+  .overview-actions {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+}

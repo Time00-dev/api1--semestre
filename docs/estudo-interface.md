@@ -66,3 +66,10 @@ O Panorama usa uma faixa de métricas e uma área única de exploração. No des
 A ação primária abre a ficha. Comparar e Explicar com IA ficam no mesmo resumo. O gráfico conserva a escala de 1 a 5 em ambos os eixos, distingue regiões pela forma dos pontos e usa ciano para o ponto em foco. A tabela do gráfico também permite selecionar uma sub-região.
 
 Referências: [Impeccable](https://github.com/pbakaus/impeccable) e [Primer Data Visualization](https://primer.style/product/ui-patterns/data-visualization/).
+
+
+## Busca e referência no gráfico
+
+Sub-regiões e Comparar compartilham a busca por UF, estado, região, nome publicado e prefixo de CEP, inclusive quando a entrada é um CEP completo. A busca por município também reconhece localidades selecionadas do interior paulista associadas pelo prefixo. São José dos Campos, por exemplo, remete à sub-região SP · CEP 12. O resultado segue representando a sub-região postal. [Correios — faixas de CEP do interior paulista](https://www.correios.com.br/acesso-a-informacao/licitacoes-e-contratos/credenciamento-ponto-de-coleta/arquivos/regioes-de-interesse-por-se/edi_spi-1.pdf).
+
+A referência do gráfico é a média simples de risco e oportunidade das sub-regiões com ambas as notas na competência. A legenda mostra o número de observações. O rodapé da tabela repete os valores para consulta por teclado.

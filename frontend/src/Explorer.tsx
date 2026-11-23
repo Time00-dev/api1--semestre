@@ -3,12 +3,12 @@ import { Button, Checkbox, CounterLabel, FormControl, Pagination, Select, TextIn
 import { ArrowDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, GitCompareIcon, SearchIcon, XIcon } from '@primer/octicons-react';
 import { geographic, number, regions, type Row } from './data';
 import { compareLink, url } from './navigation';
+import { matchedCity, searchTerritories } from './territorySearch';
 
 type SortKey = 'territory' | 'ranking' | 'score' | 'risk' | 'potential';
 type Filters = { query: string; region: string; uf: string };
 const emptyFilters: Filters = { query: '', region: '', uf: '' };
 const pageSize = 20;
-const norm = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
 export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelection }: {
   rows: Row[]; period: string; queryParams: URLSearchParams; pinned: string[];
@@ -24,12 +24,8 @@ export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelec
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'ranking', descending: false });
   const { query, region, uf } = filters;
   const states = [...new Set(rows.filter(row => !region || row.regiao === region).map(row => row.uf))].sort();
-  const terms = norm(query.trim()).split(/\s+/).filter(Boolean);
-  const shown = rows.filter(row => {
-    if ((region && row.regiao !== region) || (uf && row.uf !== uf)) return false;
-    const searchable = norm(row.name + ' ' + geographic(row) + ' ' + row.regiao);
-    return terms.every(term => searchable.includes(term));
-  }).sort((a, b) => {
+  const filtered = rows.filter(row => (!region || row.regiao === region) && (!uf || row.uf === uf));
+  const shown = searchTerritories(filtered, query).sort((a, b) => {
     const direction = sort.descending ? -1 : 1;
     if (sort.key === 'territory') return a.id.localeCompare(b.id) * direction;
     const av = a[sort.key], bv = b[sort.key];
@@ -64,8 +60,8 @@ export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelec
     <div className="explorer-toolbar">
       <FormControl className="territory-search">
         <FormControl.Label>Buscar</FormControl.Label>
-        <TextInput block leadingVisual={SearchIcon} placeholder="Nome, UF ou prefixo de CEP"
-          type="search" value={query} onChange={e => updateFilters({ ...filters, query: e.target.value })} />
+        <TextInput block leadingVisual={SearchIcon} placeholder="Cidade, UF, região ou CEP"
+          type="search" name="busca-subregioes" autoComplete="off" spellCheck={false} value={query} onChange={e => updateFilters({ ...filters, query: e.target.value })} />
       </FormControl>
       <FormControl>
         <FormControl.Label>Região</FormControl.Label>
@@ -105,11 +101,12 @@ export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelec
           </tr></thead>
           <tbody>{shown.slice(start, start + pageSize).map(row => {
             const checked = selected.includes(row.id);
+            const city = matchedCity(row, query);
             return <tr key={row.id} className={checked ? 'current-row' : undefined}>
               <td className="check-column"><label className="check-target">
                 <Checkbox aria-label={'Comparar ' + geographic(row)} checked={checked} disabled={selected.length >= 5 && !checked} onChange={() => toggle(row.id)} />
               </label></td>
-              <th scope="row"><a href={url('sub', period, row.id)}>{geographic(row)}</a>
+              <th scope="row"><a href={url('sub', period, row.id)}>{geographic(row)}</a>{city && <small className="search-city">CEP de {city}</small>}
                 {row.name !== geographic(row) && <small className="territory-alias">{row.name}</small>}
                 <small className="mobile-data">Risco {number(row.risk)} · Oport. {number(row.potential)}</small>
               </th>
@@ -142,6 +139,6 @@ export function Explorer({ rows, period, queryParams, pinned, toggle, clearSelec
           </a>} />}
       </div>
     </> : <div className="empty table-empty"><SearchIcon size={28} /><h2>Nenhuma sub-região encontrada</h2>
-      <p>Revise a busca ou limpe os filtros para voltar à lista.</p><Button onClick={() => updateFilters(emptyFilters)}>Limpar filtros</Button></div>}
+      <p>Tente a UF ou os dois primeiros dígitos do CEP. Você também pode limpar os filtros.</p><Button onClick={() => updateFilters(emptyFilters)}>Limpar filtros</Button></div>}
   </section>;
 }

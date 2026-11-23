@@ -29,8 +29,8 @@ const subscribe = (update: () => void) => {
 };
 const useReducedMotion = () => useSyncExternalStore(subscribe, () => motionQuery.matches);
 
-export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
-  rows: Row[]; selected: string; preview: string; onPreview: (id: string) => void; onSelect: (id: string) => void;
+export function RiskPlot({ rows, baseline, selected, preview, onPreview, onSelect }: {
+  rows: Row[]; baseline: { risk: number | null; potential: number | null; count: number }; selected: string; preview: string; onPreview: (id: string) => void; onSelect: (id: string) => void;
 }) {
   const reduced = useReducedMotion();
   const palette = chartThemes[useTheme()];
@@ -54,20 +54,38 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
   }), [rows, focused, palette]);
 
   const rowAtFocus = rows.find(row => row.id === focused);
-  const selection = useRef({ row: rowAtFocus, palette });
-  selection.current = { row: rowAtFocus, palette };
+  const selection = useRef({ row: rowAtFocus, palette, baseline });
+  selection.current = { row: rowAtFocus, palette, baseline };
   function selectedCoordinates(chart: ChartJS<'scatter'>) {
     const row = selection.current.row;
     if (row?.risk == null || row.potential == null) return null;
     return { x: chart.scales.x.getPixelForValue(row.risk), y: chart.scales.y.getPixelForValue(row.potential) };
   }
+  function meanCoordinates(chart: ChartJS<'scatter'>) {
+    const { risk, potential } = selection.current.baseline;
+    if (risk == null || potential == null) return null;
+    return { x: chart.scales.x.getPixelForValue(risk), y: chart.scales.y.getPixelForValue(potential) };
+  }
   const guide: Plugin<'scatter'> = {
     id: 'selectedTerritory',
     beforeDatasetsDraw(chart) {
+      const { ctx, chartArea } = chart;
+      const mean = meanCoordinates(chart);
+      if (mean) {
+        ctx.save();
+        ctx.strokeStyle = selection.current.palette.axis;
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath();
+        ctx.moveTo(mean.x, chartArea.top);
+        ctx.lineTo(mean.x, chartArea.bottom);
+        ctx.moveTo(chartArea.left, mean.y);
+        ctx.lineTo(chartArea.right, mean.y);
+        ctx.stroke();
+        ctx.restore();
+      }
       const point = selectedCoordinates(chart);
       if (!point) return;
       const { x, y } = point;
-      const { ctx, chartArea } = chart;
       ctx.save();
       ctx.strokeStyle = selection.current.palette.guide + '95';
       ctx.setLineDash([3, 4]);
@@ -79,9 +97,17 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
       ctx.restore();
     },
     afterDatasetsDraw(chart) {
+      const mean = meanCoordinates(chart);
+      const { ctx } = chart;
+      if (mean) {
+        ctx.save();
+        ctx.fillStyle = selection.current.palette.text;
+        ctx.fillRect(mean.x - 6, mean.y - 1, 12, 2);
+        ctx.fillRect(mean.x - 1, mean.y - 6, 2, 12);
+        ctx.restore();
+      }
       const point = selectedCoordinates(chart);
       if (!point) return;
-      const { ctx } = chart;
       ctx.save();
       ctx.strokeStyle = selection.current.palette.selected;
       ctx.lineWidth = 1.5;
@@ -92,7 +118,7 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
     },
   };
   return <>
-    <div className="plot scatter" onMouseLeave={() => onPreview('')}><Scatter aria-label="Dispersão de risco e oportunidade. A tabela de ranking permite selecionar por teclado."
+    <div className="plot scatter" onMouseLeave={() => onPreview('')}><Scatter aria-label="Dispersão de risco e oportunidade. As linhas pontilhadas marcam a média da base. Use a tabela para selecionar por teclado."
       data={data} plugins={[guide]}
       options={{
         maintainAspectRatio: false, animation: reduced ? false : { duration: 160 },
@@ -129,10 +155,13 @@ export function RiskPlot({ rows, selected, preview, onPreview, onSelect }: {
         },
       }} />
     </div>
-    <div className="legend" aria-label="Regiões">
+    <div className="legend" aria-label="Legenda do gráfico">
       {regions.map((region, i) => <span key={region}>
         <i className={'legend-marker ' + shapes[i]} style={{ backgroundColor: palette.colors[1] }} />{region}
       </span>)}
+      <span className="chart-baseline" title="Média simples das sub-regiões com as duas notas nesta competência">
+        <b aria-hidden="true">+</b> Média da base ({baseline.count}) · {number(baseline.risk)} × {number(baseline.potential)}
+      </span>
     </div>
   </>;
 }

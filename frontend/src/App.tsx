@@ -1,6 +1,6 @@
 import { ArrowRight, ArrowUpRight, Database, X } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { BaseStyles, Button, ButtonGroup, FormControl, Select, SkeletonBox } from '@primer/react';
+import { BaseStyles, Button, FormControl, Select, SkeletonBox } from '@primer/react';
 import { ThemeProvider } from '@primer/react/next';
 import { ArrowDownIcon, CommentDiscussionIcon } from '@primer/octicons-react';
 import { geographic, indicators, loadDataWithRetry, mean, month, note, number, potentialKeys,
@@ -9,6 +9,7 @@ import { compareLink, url, useRoute } from './navigation';
 import { MethodLink, Period } from './Controls';
 import { Shell } from './Shell';
 import { Overview } from './Overview';
+import { CompareSearch } from './CompareSearch';
 import { ThemeContext, useThemePreference } from './theme';
 
 const Explorer = lazy(() => import('./Explorer').then(module => ({ default: module.Explorer })));
@@ -80,7 +81,7 @@ function App() {
     <BaseStyles className="workspace">
     <a href="#conteudo" className="skip" onClick={event => { event.preventDefault(); document.getElementById('conteudo')?.focus(); }}>Pular para o conteúdo</a>
     <Shell page={route.page} detailLabel={territory && geographic(territory)} period={period}
-      pinned={pinnedRows} theme={theme} onTheme={toggleTheme} />
+      pinned={pinnedRows} theme={theme} onTheme={toggleTheme}>
 
     <main id="conteudo" tabIndex={-1} className="shell page">
       {route.page !== 'sub' && <div className={route.page === 'geral' ? 'page-heading overview-heading' : 'page-heading'}>
@@ -104,15 +105,14 @@ function App() {
           pinned={pinned} toggle={togglePinned} clearSelection={() => setPinned([])} />}
         {route.page === 'sub' && <TerritoryDetail row={territory} data={data} period={period}
           changePeriod={changePeriod} explain={openAnalysis} rows={rows} />}
-        {route.page === 'comparar' && <Compare key={period + route.query.get('s')} rows={rows} data={data}
+        {route.page === 'comparar' && <Compare key={period} rows={rows} data={data}
           period={period} ids={route.query.has('s') ? (route.query.get('s') || '').split(',') : pinnedRows}
           explain={openAnalysis} />}
         {route.page === 'indicadores' && <Indicators rows={rows} data={data} period={period}
           initial={route.query.get('i')} />}
       </Suspense>}
     </main>
-    <footer className="site-footer"><div className="shell"><span>Time00.dev · FATEC · Aprendizagem por Projetos Integrados</span>
-      <a href={url('metodologia', period)}>Fontes e metodologia <ArrowUpRight size={13} /></a></div></footer>
+    </Shell>
     {analysis && <Suspense fallback={null}><Assistant key={analysis.period + analysis.rows.map(row => row.id).join(',')}
       allRows={rows} rows={analysis.rows} period={analysis.period} close={() => setAnalysis(undefined)} /></Suspense>}
     </BaseStyles>
@@ -123,31 +123,22 @@ function App() {
 function Compare({ rows, data, period, ids, explain }: {
   rows: Row[]; data: Dataset; period: string; ids: string[]; explain: (rows: Row[]) => void;
 }) {
-  const [candidate, setCandidate] = useState('');
   const selected = [...new Set(ids)].map(id => rows.find(row => row.id === id)).filter((row): row is Row => Boolean(row)).slice(0, 5);
   const activeIds = selected.map(row => row.id);
   return <>
     <section className="panel compare-controls">
-      <div className="filters"><FormControl disabled={selected.length >= 5}>
-        <FormControl.Label>Adicionar sub-região</FormControl.Label>
-        <Select block value={candidate} onChange={event => setCandidate(event.target.value)}>
-          <Select.Option value="">UF e prefixo de CEP</Select.Option>
-          {rows.filter(row => !activeIds.includes(row.id)).sort((a, b) => a.id.localeCompare(b.id)).map(row =>
-            <Select.Option value={row.id} key={row.id}>{geographic(row)} · {row.regiao}</Select.Option>)}
-        </Select>
-      </FormControl>
-        <ButtonGroup>
-          {candidate && <Button as="a" variant="primary" href={compareLink(period, [...activeIds, candidate])}>Adicionar</Button>}
-          {selected.length > 0 && <Button leadingVisual={CommentDiscussionIcon} onClick={() => explain(selected)}>{selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}</Button>}
-        </ButtonGroup>
+      <div className="compare-toolbar">
+        <CompareSearch rows={rows} period={period} activeIds={activeIds} />
+        {selected.length > 0 && <Button leadingVisual={CommentDiscussionIcon} onClick={() => explain(selected)}>
+          {selected.length > 1 ? 'Explicar diferenças' : 'Explicar com IA'}
+        </Button>}
       </div>
       <div className="comparison-chips">{selected.map(row => <a key={row.id} href={compareLink(period, activeIds.filter(id => id !== row.id))}
         aria-label={'Remover ' + geographic(row)}>{geographic(row)} <X size={14} /></a>)}</div>
-      {selected.length === 0 && <p>Nenhuma sub-região selecionada. Você também pode escolher pela <a href={url('subregioes', period)}>tabela de sub-regiões</a>.</p>}
     </section>
     {selected.length > 0 && <>
       <section className="panel comparison-panel"><div className="panel-heading"><div><div className="heading-inline"><h2>Resultados</h2>{selected.some(row => row.legacyRisk) && <MethodLink period={period} />}</div><p>{selected.length} de 5 sub-regiões</p></div></div>
-        <div className="table-scroll"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}>{geographic(row)}</a></th>)}</tr></thead>
+        <div className="table-scroll" tabIndex={0} aria-label="Indicadores comparados"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}>{geographic(row)}</a></th>)}</tr></thead>
           <tbody>
             <tr className="comparison-score"><th scope="row">Score / 100</th>{selected.map(row => <td key={row.id}><strong>{number(row.score)}</strong></td>)}</tr>
             <tr><th scope="row">Posição no ranking</th>{selected.map(row => <td key={row.id}>{row.ranking == null ? '—' : row.ranking + 'º'}</td>)}</tr>

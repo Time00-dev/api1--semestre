@@ -13,6 +13,8 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
 }) {
   const [showTable, setShowTable] = useState(false);
   const [preview, setPreview] = useState('');
+  const plotted = rows.filter(row => row.risk != null && row.potential != null);
+  const baseline = { risk: mean(plotted.map(row => row.risk)), potential: mean(plotted.map(row => row.potential)), count: plotted.length };
   const inspected = rows.find(row => row.id === preview) ?? active;
   const lead = ranking.slice(0, 5);
   const shown = active && !lead.includes(active) ? [...lead, active] : lead;
@@ -21,8 +23,8 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
     <dl className="overview-metrics">
       <div><dt>Sub-regiões</dt><dd>{number(rows.length, 0)}</dd></div>
       <div><dt>UFs</dt><dd>{number(new Set(rows.map(row => row.uf)).size, 0)}</dd></div>
-      <div><dt>Risco médio</dt><dd>{number(mean(rows.map(row => row.risk)))} <small>/ 5</small></dd></div>
-      <div><dt>Oportunidade média</dt><dd>{number(mean(rows.map(row => row.potential)))} <small>/ 5</small></dd></div>
+      <div><dt>Risco médio</dt><dd>{number(baseline.risk)} <small>/ 5</small></dd></div>
+      <div><dt>Oportunidade média</dt><dd>{number(baseline.potential)} <small>/ 5</small></dd></div>
     </dl>
 
     <div className="overview-board">
@@ -66,9 +68,11 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
               <td className="numeric">{number(row.risk)}</td><td className="numeric">{number(row.potential)}</td>
               <td className="numeric">{number(row.score)}</td>
             </tr>)}</tbody>
+            {baseline.count > 0 && <tfoot><tr><th scope="row">Média da base</th><td className="numeric">{number(baseline.risk)}</td>
+              <td className="numeric">{number(baseline.potential)}</td><td className="numeric">—</td></tr></tfoot>}
           </table>
-        </div> : rows.some(row => row.risk != null && row.potential != null) ?
-          <RiskPlot rows={rows} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
+        </div> : plotted.length ?
+          <RiskPlot rows={plotted} baseline={baseline} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
           <p className="overview-empty">Sem notas de risco e oportunidade nesta competência.</p>}
         {!showTable && inspected && <div className="overview-readout">
           <strong>{geographic(inspected)}</strong>
