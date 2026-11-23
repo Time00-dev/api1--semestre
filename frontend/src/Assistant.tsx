@@ -2,6 +2,7 @@ import { ArrowUpRight, BookOpen, Send, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { geographic, month, number, rank, type Row } from './data';
 import { url } from './navigation';
+import { MethodLink } from './Controls';
 
 type Answer = { resumo: string; modelo: string };
 export function Assistant({ rows, period, allRows, close }: {
@@ -51,14 +52,13 @@ export function Assistant({ rows, period, allRows, close }: {
     <section className="assistant-content">
       <header><h2 id="assistant-title">{rows.length === 1 ? 'Explicar score' : 'Explicar diferenças'}</h2>
         <button type="button" className="icon-button" aria-label="Fechar análise" onClick={close}><X size={22} /></button></header>
-      <p className="muted">{month(period)} · {rows.length === 1 ? geographic(rows[0]) : rows.length + ' sub-regiões'}</p>
+      <div className="heading-inline"><p className="muted">{month(period)} · {rows.length === 1 ? geographic(rows[0]) : rows.length + ' sub-regiões'}</p>{rows.some(row => row.legacyRisk) && <MethodLink period={period} onNavigate={close} />}</div>
       <div className="assistant-records">
         <h3>Na análise</h3>
         {rows.map(row => <a key={row.id} href={url('sub', period, row.id)} onClick={close}>
           <span>{geographic(row)}<small>{row.ranking == null ? 'Sem posição publicada' : row.ranking + 'º de ' + rank(allRows).length + ' no ranking'}</small></span>
           <strong>{number(row.score)}</strong><ArrowUpRight size={15} />
         </a>)}
-        {rows.some(row => row.legacyRisk) && <p className="notice">O score publicado pode incluir a antiga nota de fragilidade. O lote requer validação.</p>}
       </div>
       <form onSubmit={ask}>
         <label htmlFor="question">Pergunta</label>

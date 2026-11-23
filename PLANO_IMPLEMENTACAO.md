@@ -18,3 +18,7 @@ Direção aprovada em 23/11/2026. O painel abre em dados reais e organiza a aná
 ## Revisão da identidade
 
 Em 23/11/2026, a crítica à prévia pediu alinhamento à identidade da equipe, menos títulos de apoio e tipografia mais sóbria. O cabeçalho e o favicon reutilizam o avatar oficial [Time00.dev](https://github.com/Time00-dev). O infinito grafite e ciano orienta a cor de seleção. A interface usa IBM Plex Sans localmente e números tabulares. O panorama reúne gráfico, ranking e seleção em uma superfície, com ações na faixa da sub-região. A revisão aplicou os critérios Operate e Distill da [Impeccable](https://impeccable.style/docs/).
+
+## Estudo da navegação, dos filtros e dos temas
+
+A segunda revisão segue o [estudo de interface](docs/estudo-interface.md). A navegação muda por largura, a competência usa ano e meses disponíveis e a nota de fragilidade tem acesso contextual de uma interrogação. O símbolo foi redesenhado como infinito em fundo transparente, com ponto ciano.

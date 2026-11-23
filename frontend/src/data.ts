@@ -41,7 +41,21 @@ export const rank = (rows: Row[]) => rows.filter(row => validNumber(row.ranking)
 export const series = (data: Dataset, m: string, id: string) => data.months.filter(v => v <= m).slice(-12)
   .map(period => ({ period, row: data.byMonth.get(period)?.find(row => row.id === id) }));
 
-export async function loadData(signal?: AbortSignal): Promise<Dataset> {
+export async function loadDataWithRetry(signal: AbortSignal): Promise<Dataset> {
+  try {
+    return await loadData(AbortSignal.any([signal, AbortSignal.timeout(6000)]));
+  } catch (error) {
+    if (signal.aborted || !(error instanceof TypeError || (error instanceof DOMException && error.name === 'TimeoutError'))) throw error;
+  }
+  try {
+    return await loadData(AbortSignal.any([signal, AbortSignal.timeout(11000)]));
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error('A fonte demorou para responder.');
+    throw error;
+  }
+}
+
+async function loadData(signal: AbortSignal): Promise<Dataset> {
   const url = import.meta.env.VITE_DATA_URL || 'api/sub-regioes';
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error('A fonte respondeu com o status ' + response.status + '.');

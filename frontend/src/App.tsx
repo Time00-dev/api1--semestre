@@ -1,12 +1,15 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays,
-  ChevronDown, ChevronRight, CircleHelp, Database, GitCompareArrows,
+import { ArrowDown, ArrowUp, ArrowLeft, ArrowRight, ArrowUpRight,
+  Database, GitCompareArrows,
   MessageSquareText, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Assistant } from './Assistant';
 import { RiskPlot, Trend } from './Charts';
-import { geographic, indicators, loadData, mean, month, note, number, potentialKeys,
+import { geographic, indicators, loadDataWithRetry, mean, month, note, number, potentialKeys,
   rank, regions, riskKeys, series, type Dataset, type Indicator, type Row } from './data';
-import { pages, url, useRoute } from './navigation';
+import { url, useRoute } from './navigation';
+import { MethodLink, Period } from './Controls';
+import { Shell } from './Shell';
+import { ThemeContext, useThemePreference } from './theme';
 
 const norm = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const repo = 'https://github.com/Time00-dev/api1--semestre';
@@ -17,6 +20,7 @@ const change = (d: number | null) => d == null ? '—' : (d > 0 ? '+' : '') + nu
 
 function App() {
   const route = useRoute();
+  const { theme, toggleTheme } = useThemePreference();
   const [data, setData] = useState<Dataset>();
   const [error, setError] = useState('');
   const [attempt, retry] = useState(0);
@@ -30,17 +34,12 @@ function App() {
   const ranking = useMemo(() => rank(rows), [rows]);
   const active = rows.find(row => row.id === (route.query.get('foco') || selected)) || ranking[0] || rows[0];
   const pinnedRows = pinned.filter(id => rows.some(row => row.id === id));
-  const compromised = rows.some(row => row.legacyRisk);
   useEffect(() => {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => {
-      controller.abort();
-      setError('A consulta excedeu o tempo de resposta.');
-    }, 15000);
-    loadData(controller.signal).then(setData).catch(err => {
+    loadDataWithRetry(controller.signal).then(setData).catch(err => {
       if (!controller.signal.aborted) setError(err.message);
-    }).finally(() => window.clearTimeout(timeout));
-    return () => { controller.abort(); window.clearTimeout(timeout); };
+    });
+    return () => controller.abort();
   }, [attempt]);
 
   const openAnalysis = (items: Row[]) => setAnalysis({ period, rows: items });
@@ -56,31 +55,29 @@ function App() {
     location.hash = url(route.page, next, route.id, Object.fromEntries(route.query));
     setAnalysis(undefined);
   };
-  const pageLabel = route.page === 'sub' ? 'Ficha da sub-região' : pages.find(([id]) => id === route.page)?.[1];
   const isMethod = route.page === 'metodologia';
   const ready = data && period;
+  const methodSection = isMethod ? route.query.get('secao') : null;
+  const routeId = route.page + '/' + route.id;
+  const previousRoute = useRef(routeId);
+  useEffect(() => {
+    if (methodSection) {
+      const element = document.getElementById('method-' + methodSection);
+      element?.focus({ preventScroll: true });
+      element?.scrollIntoView({ block: 'start' });
+    } else if (previousRoute.current !== routeId) {
+      window.scrollTo({ top: 0 });
+      document.getElementById('conteudo')?.focus({ preventScroll: true });
+    }
+    previousRoute.current = routeId;
+  }, [methodSection, routeId]);
 
-  return <>
+  return <ThemeContext.Provider value={theme}>
+    <div className="workspace">
     <a href="#conteudo" className="skip" onClick={event => { event.preventDefault(); document.getElementById('conteudo')?.focus(); }}>Pular para o conteúdo</a>
-    <header className="site-header">
-      <div className="shell topline">
-        <a className="brand" href={url('geral', period)}>
-          <span className="brand-mark"><img src={import.meta.env.BASE_URL + 'time00.png'} alt="" width="58" height="58" /></span>
-          <span>Negado pelo Banco</span>
-        </a>
-        <nav aria-label="Navegação principal">
-          {pages.map(([id, label]) => {
-            const current = route.page === id || (route.page === 'sub' && id === 'subregioes');
-            return <a href={id === 'comparar' && pinnedRows.length ? compareLink(period, pinnedRows) : url(id, period)}
-              aria-current={current ? 'page' : undefined} key={id}>{label}</a>;
-          })}
-        </nav>
-        <a className="github-link" href={repo} target="_blank" rel="noreferrer" aria-label="Repositório no GitHub">GitHub <ArrowUpRight size={14} /></a>
-      </div>
-    </header>
+    <Shell page={route.page} period={period} pinned={pinnedRows} theme={theme} onTheme={toggleTheme} />
 
     <main id="conteudo" tabIndex={-1} className="shell page">
-      {route.page !== 'geral' && <div className="crumb"><a href={url('geral', period)}>Panorama</a><ChevronRight size={13} />{pageLabel}</div>}
       {route.page !== 'sub' && <div className="page-heading">
         <div><h1>{({
           geral: 'Crédito por sub-região', subregioes: 'Sub-regiões',
@@ -94,11 +91,8 @@ function App() {
       </div> : !data ? <div className="empty" role="status"><span className="loader" />Carregando a base publicada…</div>
       : !period ? <div className="empty"><h2>Base sem resultados</h2><p>O servidor ainda não forneceu resultados para consultar.</p></div>
       : <>
-        {route.page === 'geral' && <>
-          <Overview rows={rows} ranking={ranking} active={active} period={period} select={select}
-            explain={() => active && openAnalysis([active])} />
-          {compromised && <DataNotice period={period} />}
-        </>}
+        {route.page === 'geral' && <Overview rows={rows} ranking={ranking} active={active} period={period} select={select}
+          explain={() => active && openAnalysis([active])} />}
         {route.page === 'subregioes' && <Explorer key={period} rows={rows} period={period} pinned={pinned}
           toggle={togglePinned} />}
         {route.page === 'sub' && <Detail row={rows.find(row => row.id === route.id)} data={data} period={period}
@@ -114,72 +108,70 @@ function App() {
       <a href={url('metodologia', period)}>Fontes e metodologia <ArrowUpRight size={13} /></a></div></footer>
     {analysis && <Assistant key={analysis.period + analysis.rows.map(row => row.id).join(',')}
       allRows={rows} rows={analysis.rows} period={analysis.period} close={() => setAnalysis(undefined)} />}
-  </>;
-}
-
-function Period({ months, value, set }: { months: string[]; value: string; set: (m: string) => void }) {
-  return <label className="period"><CalendarDays size={18} /><span>Competência<select value={value} onChange={event => set(event.target.value)}>
-    {months.slice().reverse().map(m => <option key={m} value={m}>{month(m)}</option>)}</select></span><ChevronDown size={16} /></label>;
-}
-
-function DataNotice({ period }: { period: string }) {
-  return <div className="data-note"><CircleHelp size={16} /><p>A fonte deixou de informar fragilidade em jan/2025. O risco exibido ignora a nota antiga. O score e a posição publicados ainda aguardam validação. <a href={url('metodologia', period)}>Entenda a diferença</a></p></div>;
+    </div>
+  </ThemeContext.Provider>;
 }
 
 function Overview({ rows, ranking, active, period, select, explain }: {
   rows: Row[]; ranking: Row[]; active?: Row; period: string; select: (id: string) => void; explain: () => void;
 }) {
   const [mode, setMode] = useState<'gráfico' | 'tabela'>('gráfico');
+  const [preview, setPreview] = useState('');
+  const inspected = (preview && rows.find(row => row.id === preview)) || active;
   const displayed = ranking.length ? ranking : rows;
+  const shown = active && !displayed.slice(0, 6).includes(active) ? [...displayed.slice(0, 5), active] : displayed.slice(0, 6);
   return <>
-    <div className="overview-strip">
-      <div><span>Sub-regiões na base</span><strong>{number(rows.length, 0)}</strong></div>
-      <div><span>Unidades da Federação</span><strong>{number(new Set(rows.map(row => row.uf)).size, 0)}</strong></div>
-      <div><span>Risco médio <small>/ 5</small></span><strong>{number(mean(rows.map(row => row.risk)))}</strong></div>
-      <div><span>Oportunidade média <small>/ 5</small></span><strong>{number(mean(rows.map(row => row.potential)))}</strong></div>
-    </div>
+    <dl className="metric-bar">
+      <div><dt>Sub-regiões</dt><dd>{number(rows.length, 0)}</dd></div>
+      <div><dt>Unidades da Federação</dt><dd>{number(new Set(rows.map(row => row.uf)).size, 0)}</dd></div>
+      <div><dt>Risco médio <small>/ 5</small></dt><dd>{number(mean(rows.map(row => row.risk)))}</dd></div>
+      <div><dt>Oportunidade média <small>/ 5</small></dt><dd>{number(mean(rows.map(row => row.potential)))}</dd></div>
+    </dl>
     <div className="overview">
-      <section className="chart-panel">
+      <section className="panel chart-panel">
         <div className="panel-heading">
-          <div><h2>Risco × oportunidade</h2></div>
+          <div className="heading-inline"><h2>Risco × oportunidade</h2>
+            {rows.some(row => row.legacyRisk) && <MethodLink period={period} />}</div>
           <div className="segmented" aria-label="Formato da visualização">
             {(['gráfico', 'tabela'] as const).map(label => <button aria-pressed={mode === label} key={label} onClick={() => setMode(label)}>{label}</button>)}
           </div>
         </div>
-        {mode === 'gráfico' ? <RiskPlot rows={rows} selected={active?.id || ''} onSelect={select} /> :
+        {mode === 'gráfico' ? <RiskPlot rows={rows} selected={active?.id || ''} preview={preview} onPreview={setPreview} onSelect={select} /> :
           <div className="table-scroll plot-table"><table><thead><tr><th>Sub-região</th><th>Risco</th><th>Oportunidade</th></tr></thead><tbody>
-            {rows.map(row => <tr key={row.id} className={row.id === active?.id ? 'current-row' : ''}><th><button className="table-link" onClick={() => select(row.id)}>{geographic(row)}</button></th><td>{number(row.risk)}</td><td>{number(row.potential)}</td></tr>)}
+            {rows.map(row => <tr key={row.id} className={row.id === active?.id ? 'current-row' : ''}>
+              <th scope="row"><button className="table-link" onClick={() => select(row.id)}>{geographic(row)}</button></th>
+              <td>{number(row.risk)}</td><td>{number(row.potential)}</td></tr>)}
           </tbody></table></div>}
+        {inspected && <div className="chart-caption"><span className="selected-point" /> <strong>{geographic(inspected)}</strong>
+          <span>Risco {number(inspected.risk)} · Oportunidade {number(inspected.potential)}</span></div>}
       </section>
-      <section className="ranking-panel">
-        <div className="panel-heading"><div><h2>Ranking</h2><p>Score de oportunidade / 100</p></div></div>
+      <section className="panel ranking-panel">
+        <div className="panel-heading"><div><h2>Ranking</h2><p>Score de oportunidade / 100</p></div>
+          <a className="text-link" href={url('subregioes', period)}>Ver ranking <ArrowUpRight size={15} /></a></div>
         {!ranking.length && <p className="inline-note">Sem ranking para esta competência.</p>}
-        <div className="ranking-list" aria-label="Sub-regiões destacadas">
-          {(active && !displayed.slice(0, 6).includes(active) ? [...displayed.slice(0, 5), active] : displayed.slice(0, 6))
-            .map(row => <button key={row.id} className={'rank-row' + (active?.id === row.id ? ' selected' : '')}
-              aria-pressed={active?.id === row.id} onClick={() => select(row.id)}>
-              <span className="position">{row.ranking == null ? '—' : row.ranking + 'º'}</span>
-              <strong>{geographic(row)}</strong>
-              <strong className="rank-score">{number(row.score)}</strong>
-            </button>)}
+        <div className="ranking-list" aria-label="Sub-regiões destacadas" onMouseLeave={() => setPreview('')}>
+          {shown.map(row => <button key={row.id}
+            className={'rank-row' + (active?.id === row.id ? ' selected' : '') + (preview === row.id ? ' preview' : '')}
+            aria-pressed={active?.id === row.id} onMouseEnter={() => setPreview(row.id)} onFocus={() => setPreview(row.id)} onBlur={() => setPreview('')}
+            onClick={() => { setPreview(''); select(row.id); }}>
+            <span className="position">{row.ranking == null ? '—' : row.ranking + 'º'}</span>
+            <strong>{geographic(row)}</strong><strong className="rank-score">{number(row.score)}</strong>
+          </button>)}
         </div>
-        <a className="text-link rank-all" href={url('subregioes', period)}>Ver ranking completo <ArrowRight size={15} /></a>
+        {active && <div className="ranking-selection">
+          <div className="ranking-selection-head"><div><h3>{geographic(active)}</h3><p>{active.faixa || active.regiao}</p></div>
+            <a className="text-link result-sheet" href={url('sub', period, active.id)}>Ficha <ArrowRight size={15} /></a></div>
+          <div className="result-actions">
+            <button className="button primary" onClick={explain}><MessageSquareText size={16} /> Explicar com IA</button>
+            <a className="button subtle" href={compareLink(period, [active.id])}>Comparar</a>
+          </div>
+        </div>}
       </section>
-    {active && <section className="result-panel">
-      <div className="result-copy"><h2>{geographic(active)}</h2>
-        <p>{active.faixa || active.regiao}</p></div>
-      <div className="result-stat"><small>Risco</small><strong>{number(active.risk)}</strong></div>
-      <div className="result-stat"><small>Oportunidade</small><strong>{number(active.potential)}</strong></div>
-      <div className="result-stat"><small>Score publicado</small><strong>{number(active.score)}</strong></div>
-      <div className="result-actions">
-        <a className="button subtle result-sheet" href={url('sub', period, active.id)}>Ver ficha <ArrowRight size={15} /></a>
-        <a className="button subtle" href={compareLink(period, [active.id])}>Comparar</a>
-        <button className="button primary" onClick={explain}><MessageSquareText size={15} /> Explicar com IA</button>
-      </div>
-    </section>}
     </div>
   </>;
 }
+
+type SortKey = 'territory' | 'ranking' | 'score' | 'risk' | 'potential';
 
 function Explorer({ rows, period, pinned, toggle }: {
   rows: Row[]; period: string; pinned: string[]; toggle: (id: string) => void;
@@ -187,29 +179,44 @@ function Explorer({ rows, period, pinned, toggle }: {
   const [query, setQuery] = useState('');
   const [region, setRegion] = useState('');
   const [uf, setUf] = useState('');
-  const [order, setOrder] = useState('ranking');
+  const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({ key: 'ranking', descending: false });
   const states = [...new Set(rows.filter(row => !region || row.regiao === region).map(row => row.uf))].sort();
   const shown = rows.filter(row => (!region || row.regiao === region) && (!uf || row.uf === uf) &&
     norm(row.name + ' ' + geographic(row) + ' ' + row.regiao).includes(norm(query.trim())))
-    .sort((a, b) => order === 'risk' ? (b.risk ?? -1) - (a.risk ?? -1) :
-      order === 'potential' ? (b.potential ?? -1) - (a.potential ?? -1) :
-      order === 'territory' ? a.id.localeCompare(b.id) : (a.ranking ?? Infinity) - (b.ranking ?? Infinity) || a.id.localeCompare(b.id));
+    .sort((a, b) => {
+      const direction = sort.descending ? -1 : 1;
+      if (sort.key === 'territory') return a.id.localeCompare(b.id) * direction;
+      const av = a[sort.key], bv = b[sort.key];
+      if (av == null) return bv == null ? a.id.localeCompare(b.id) : 1;
+      if (bv == null) return -1;
+      return (av - bv) * direction || a.id.localeCompare(b.id);
+    });
   const selected = pinned.filter(id => rows.some(row => row.id === id));
+  function heading(key: SortKey, name: string) {
+    const current = sort.key === key;
+    const Icon = sort.descending ? ArrowDown : ArrowUp;
+    return <th scope="col" aria-sort={current ? (sort.descending ? 'descending' : 'ascending') : undefined}>
+      <button className="sort-button" onClick={() => setSort({
+        key, descending: current ? !sort.descending : key !== 'ranking' && key !== 'territory',
+      })}>{name}{current && <Icon size={14} />}</button>
+    </th>;
+  }
   return <section className="panel explorer">
     <div className="filters">
       <label className="search"><Search size={18} /><input type="search" placeholder="Buscar nome, UF ou CEP" aria-label="Buscar sub-região" value={query} onChange={e => setQuery(e.target.value)} /></label>
       <label>Região<select value={region} onChange={e => { setRegion(e.target.value); setUf(''); }}><option value="">Todas</option>{regions.map(r => <option key={r}>{r}</option>)}</select></label>
       <label>UF<select value={uf} onChange={e => setUf(e.target.value)}><option value="">Todas</option>{states.map(s => <option key={s}>{s}</option>)}</select></label>
-      <label>Ordenar por<select value={order} onChange={e => setOrder(e.target.value)}><option value="ranking">Ranking</option><option value="risk">Maior risco</option><option value="potential">Maior oportunidade</option><option value="territory">UF e CEP</option></select></label>
     </div>
     <div className="results-bar"><p role="status">{shown.length} sub-regiões</p>
       {selected.length > 0 && <a className="button primary" href={compareLink(period, selected)}><GitCompareArrows size={16} /> Comparar ({selected.length}/5)</a>}</div>
     {shown.length ? <div className="table-scroll"><table className="territory-table"><thead><tr><th scope="col"><span className="sr-only">Comparar</span></th>
-      <th scope="col">Sub-região</th><th scope="col">Região</th><th scope="col">Posição</th><th scope="col">Score</th><th scope="col">Risco</th><th scope="col">Oportunidade</th><th scope="col">Faixa</th></tr></thead>
+      {heading('territory', 'Sub-região')}<th scope="col" className="secondary-column">Região</th>
+      {heading('ranking', 'Posição')}{heading('score', 'Score')}{heading('risk', 'Risco')}
+      {heading('potential', 'Oportunidade')}<th scope="col" className="secondary-column">Faixa</th></tr></thead>
       <tbody>{shown.map(row => <tr key={row.id}><td><input type="checkbox" aria-label={'Comparar ' + geographic(row)} checked={pinned.includes(row.id)}
         disabled={pinned.length >= 5 && !pinned.includes(row.id)} onChange={() => toggle(row.id)} /></td>
         <th scope="row"><a href={url('sub', period, row.id)}>{geographic(row)}</a>{row.name !== geographic(row) && <small>{row.name}</small>}</th>
-        <td>{row.regiao}</td><td>{row.ranking != null ? row.ranking + 'º' : '—'}</td><td><strong>{number(row.score)}</strong></td><td>{number(row.risk)}</td><td>{number(row.potential)}</td><td>{row.faixa || '—'}</td></tr>)}</tbody>
+        <td className="secondary-column">{row.regiao}</td><td>{row.ranking != null ? row.ranking + 'º' : '—'}</td><td><strong>{number(row.score)}</strong></td><td>{number(row.risk)}</td><td>{number(row.potential)}</td><td className="secondary-column">{row.faixa || '—'}</td></tr>)}</tbody>
     </table></div> : <div className="empty"><Search size={25} /><h2>Nenhuma sub-região encontrada</h2><p>Altere a busca ou os filtros.</p></div>}
   </section>;
 }
@@ -233,10 +240,9 @@ function Detail({ row, data, period, months, changePeriod, explain, rows }: {
       <div><span>Risco <small>/ 5</small></span><strong>{number(row.risk)}</strong></div>
       <div><span>Oportunidade <small>/ 5</small></span><strong>{number(row.potential)}</strong></div>
     </div>
-    <div className="panel detail-summary"><div><h2>{row.faixa || 'Faixa indisponível'}</h2>
+    <div className="detail-summary"><div><div className="heading-inline"><h2>{row.faixa || 'Faixa indisponível'}</h2>{row.legacyRisk && <MethodLink period={period} />}</div>
       <p>Variação do score ante a competência anterior da base: <b>{change(diff(row.score, prev?.score))}</b> {row.operacoes != null && ' · ' + number(row.operacoes, 0) + ' operações'}{row.peso != null && ' · peso amostral ' + number(row.peso)}</p></div>
       <div className="result-actions"><button className="button primary" onClick={() => explain([row])}><MessageSquareText size={16} /> Explicar com IA</button><a className="button subtle" href={compareLink(period, [row.id])}><GitCompareArrows size={15} /> Comparar</a></div></div>
-    {row.legacyRisk && <DataNotice period={period} />}
     <div className="detail-grid">
       <section className="panel"><div className="panel-heading"><div><h2>Evolução do score</h2><p>Até 12 competências · escala de 0 a 100</p></div></div>
         <Trend periods={history.map(p => p.period)} lines={[{ label: geographic(row), values: history.map(p => p.row?.score ?? null) }]} label="Evolução do score publicado" />
@@ -276,15 +282,16 @@ function Compare({ rows, data, period, ids, explain }: {
       {selected.length === 0 && <p>Nenhuma sub-região selecionada. Você também pode escolher pela <a href={url('subregioes', period)}>tabela de sub-regiões</a>.</p>}
     </section>
     {selected.length > 0 && <>
-      <section className="panel comparison-panel"><div className="panel-heading"><div><h2>Comparação de resultados</h2><p>{selected.length} de 5 sub-regiões · {month(period)}</p></div></div>
+      <section className="panel comparison-panel"><div className="panel-heading"><div><div className="heading-inline"><h2>Resultados</h2>{selected.some(row => row.legacyRisk) && <MethodLink period={period} />}</div><p>{selected.length} de 5 sub-regiões</p></div></div>
         <div className="table-scroll"><table className="compare-table"><thead><tr><th>Indicador</th>{selected.map(row => <th key={row.id}><a href={url('sub', period, row.id)}>{geographic(row)}</a></th>)}</tr></thead>
           <tbody>
             <tr><th>Score publicado</th>{selected.map(row => <td key={row.id}><strong>{number(row.score)}</strong></td>)}</tr>
             <tr><th>Faixa</th>{selected.map(row => <td key={row.id}>{row.faixa || '—'}</td>)}</tr>
             <tr><th>Risco médio</th>{selected.map(row => <td key={row.id}>{number(row.risk)}</td>)}</tr>
             <tr><th>Oportunidade média</th>{selected.map(row => <td key={row.id}>{number(row.potential)}</td>)}</tr>
-            {([...riskKeys, ...potentialKeys]).map(k => <tr key={k}><th>{indicators[k][0]} <small>{indicators[k][1]}</small></th>
-              {selected.map(row => <td key={row.id}>{number(note(row, k))}</td>)}</tr>)}
+            {([['Risco', riskKeys], ['Inclusão e demografia', potentialKeys]] as const).map(([title, keys]) =>
+              <IndicatorRows key={title} title={title} keys={keys} rows={selected} />
+            )}
           </tbody></table></div>
       </section>
       <section className="panel comparison-panel"><div className="panel-heading"><div><h2>Evolução do score</h2><p>Até 12 competências · escala de 0 a 100</p></div></div>
@@ -294,8 +301,15 @@ function Compare({ rows, data, period, ids, explain }: {
         <details><summary>Valores do histórico</summary><div className="table-scroll"><table><thead><tr><th>Competência</th>{selected.map(row => <th key={row.id}>{geographic(row)}</th>)}</tr></thead>
           <tbody>{chartHistory[0].map((item, index) => <tr key={item.period}><th>{month(item.period)}</th>{chartHistory.map((history, i) => <td key={selected[i].id}>{number(history[index].row?.score)}</td>)}</tr>)}</tbody></table></div></details>
       </section>
-      {selected.some(row => row.legacyRisk) && <DataNotice period={period} />}
     </>}
+  </>;
+}
+
+function IndicatorRows({ title, keys, rows }: { title: string; keys: Indicator[]; rows: Row[] }) {
+  return <>
+    <tr className="group-row"><th colSpan={rows.length + 1}>{title}</th></tr>
+    {keys.map(key => <tr key={key}><th scope="row">{indicators[key][0]} <small>{indicators[key][1]}</small></th>
+      {rows.map(row => <td key={row.id}>{number(note(row, key))}</td>)}</tr>)}
   </>;
 }
 
@@ -318,13 +332,13 @@ function Indicators({ rows, data, period, initial }: { rows: Row[]; data: Datase
   return <>
     <div className="panel filters indicator-filter"><label>Indicador<select value={field} onChange={e => setField(e.target.value as Indicator)}>{Object.entries(indicators).map(([key, [label]]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <p>{description} <b>Nível {scope === 'UF' ? 'estadual' : 'sub-regional'}.</b></p></div>
-    <div className="detail-grid">
+    <div className="detail-grid indicator-grid">
       <section className="panel"><div className="panel-heading"><div><h2>{name}</h2><p>{descending ? '15 maiores notas' : '15 menores notas'} · escala de 1 a 5</p></div>
         <button className="button subtle" onClick={() => setDescending(v => !v)}><ArrowDown size={15} /> Inverter ordem</button></div>
         {shown.length ? <div className="table-scroll"><table><thead><tr><th>Território</th><th>Região</th><th>Nota</th></tr></thead>
           <tbody>{shown.map(row => <tr key={row.id}><th>{scope === 'UF' ? row.uf : <a href={url('sub', period, row.id)}>{geographic(row)}</a>}</th><td>{row.regiao}</td><td>{number(note(row, field))}</td></tr>)}</tbody></table></div>
           : <p className="inline-note">Sem valores disponíveis nesta competência.</p>}</section>
-      <section className="panel"><div className="panel-heading"><div><h2>Histórico por região</h2><p>Média das notas disponíveis em cada período</p></div></div>
+      <section className="panel indicator-history"><div className="panel-heading"><div><h2>Histórico por região</h2><p>Média das notas disponíveis em cada período</p></div></div>
         <Trend periods={periods} lines={regional} label={'Histórico regional de ' + name} />
         <details><summary>Valores do histórico</summary><div className="table-scroll"><table><thead><tr><th>Competência</th>{regions.map(region => <th key={region}>{region}</th>)}</tr></thead>
           <tbody>{periods.map((m, index) => <tr key={m}><th>{month(m)}</th>{regional.map(line => <td key={line.label}>{number(line.values[index])}</td>)}</tr>)}</tbody></table></div></details>
@@ -335,13 +349,13 @@ function Indicators({ rows, data, period, initial }: { rows: Row[]; data: Datase
 
 function Method() {
   return <div className="method-grid">
-    <section className="panel"><h2>Como ler o painel</h2>
+    <article className="panel method-document"><h2>Unidade geográfica</h2>
       <p>A unidade de análise é a combinação de UF e dos dois primeiros dígitos do CEP. Os resultados são agregados por mês.</p>
       <p>Os eixos usam notas de 1 a 5. O painel calcula médias simples das notas disponíveis em cada eixo. A média nacional no panorama considera as sub-regiões da base.</p>
-      <h3>Score de Oportunidade</h3><p>O notebook calcula o score de 0 a 100 combinando oportunidade e capacidade, com expoentes de 0,4 e 0,6. A posição é calculada no lote mensal pelo notebook.</p>
-      <h3>Fragilidade da carteira</h3><p>A classificação D–H deixou de ser enviada pela fonte para os períodos a partir de janeiro de 2025. O painel exibe essa nota como ausente nesses meses. Alguns lotes publicados ainda incluem a nota histórica, que pode afetar o score e a classificação.</p>
+      <h2 id="method-score" tabIndex={-1}>Score de Oportunidade</h2><p>O notebook calcula o score de 0 a 100 combinando oportunidade e capacidade, com expoentes de 0,4 e 0,6. A posição é calculada no lote mensal pelo notebook.</p>
+      <h2 id="method-fragilidade" tabIndex={-1}>Fragilidade da carteira</h2><p>A classificação D–H deixou de ser enviada pela fonte para os períodos a partir de janeiro de 2025. O painel exibe essa nota como ausente nesses meses. Alguns lotes publicados ainda incluem a nota histórica, que pode afetar o score e a classificação.</p>
       <p>A análise é territorial e acadêmica. Os indicadores se destinam ao estudo de crédito agregado.</p>
-    </section>
+    </article>
     <section className="panel"><h2>Fontes</h2><ul className="source-list">
       <li><a href="https://olinda.bcb.gov.br/olinda/servico/scr_sub_regiao/versao/v1/documentacao" target="_blank" rel="noreferrer">Banco Central · SCR por sub-região <ArrowUpRight size={14} /></a><p>Dados de crédito por UF e prefixo de CEP.</p></li>
       <li><a href="https://www.bcb.gov.br/estabilidadefinanceira/estatisticaspix" target="_blank" rel="noreferrer">Banco Central · Estatísticas do Pix <ArrowUpRight size={14} /></a><p>Base para o indicador de maturidade Pix.</p></li>

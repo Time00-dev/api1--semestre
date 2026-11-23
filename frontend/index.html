@@ -4,8 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Explore e compare indicadores de crédito regional, inclusão e demografia. Projeto Time00.dev · FATEC.">
-    <meta name="theme-color" content="#19262d">
-    <link rel="icon" type="image/png" href="./time00.png">
+    <meta name="theme-color" content="#f3f6f8">
+    <script>
+      try {
+        const preference = localStorage.getItem('time00-theme');
+        document.documentElement.dataset.theme = preference === 'dark' || preference === 'light'
+          ? preference : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch {}
+    </script>
+    <link rel="icon" type="image/svg+xml" href="./time00.svg">
     <title>Negado pelo Banco · Crédito regional</title>
   </head>
   <body>
