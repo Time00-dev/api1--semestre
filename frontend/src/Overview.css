@@ -9,53 +9,18 @@
   text-wrap: balance;
 }
 
-.overview-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-block: 1px solid var(--line);
-  margin-block-end: 24px;
-}
-
-.overview-metrics > div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 4px 12px;
-  padding: 13px 18px;
-}
-
-.overview-metrics > div:first-child {
-  padding-inline-start: 0;
-}
-
-.overview-metrics > div + div {
-  border-inline-start: 1px solid var(--line);
-}
-
-.overview-metrics dt,
 .overview-territory-metrics dt {
   color: var(--muted);
   font-size: 0.9rem;
 }
 
-.overview-metrics dd,
 .overview-territory-metrics dd,
 .overview-rank-row b,
 .overview-score strong {
   font-variant-numeric: tabular-nums;
 }
 
-.overview-metrics dd {
-  font-size: 1.27rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
 
-.overview-metrics small {
-  font-size: 0.8rem;
-  font-weight: 400;
-}
 
 .overview-board {
   --overview-pad: 24px;
@@ -321,30 +286,6 @@
     font-size: 2rem;
   }
 
-  .overview-metrics {
-    grid-template-columns: 1fr 1fr;
-    margin-block-end: 15px;
-  }
-
-  .overview-metrics > div {
-    justify-content: flex-start;
-    gap: 1px 8px;
-    padding: 7px 10px;
-  }
-
-  .overview-metrics > div:nth-child(odd) {
-    padding-inline-start: 0;
-    border-inline-start: 0;
-  }
-
-  .overview-metrics > div:nth-child(n + 3) {
-    border-block-start: 1px solid var(--line);
-  }
-
-  .overview-metrics dt {
-    flex-basis: 100%;
-  }
-
   .overview-board {
     --overview-pad: 13px;
   }
@@ -406,21 +347,8 @@
     grid-template-columns: minmax(0, 1.8fr) minmax(275px, 1fr);
   }
 
-  .overview-metrics {
-    margin-block-end: 13px;
-  }
-
-  .overview-metrics > div {
-    padding: 8px 11px;
-    gap: 2px 8px;
-  }
-
   .overview-chart-header {
     margin-block-end: 10px;
-  }
-
-  .overview-chart :is(.scatter, .overview-chart-table) {
-    height: clamp(243px, calc(100dvh - 555px), 405px);
   }
 
   .overview-selection-head {
@@ -451,14 +379,6 @@
     font-size: 2.45rem;
   }
 
-  .overview-metrics > div {
-    display: grid;
-    align-content: start;
-  }
-
-  .overview-metrics dt {
-    min-height: 1.35em;
-  }
 }
 
 @media (min-width: 841px) and (max-width: 1080px) {
@@ -477,5 +397,37 @@
 
   .overview-actions {
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 841px) {
+  .page-overview {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .overview-board {
+    flex: 1 0 auto;
+  }
+
+  .overview-chart :is(.scatter, .overview-chart-table) {
+    flex: 1 0 255px;
+    height: 0;
+  }
+
+  .overview-ranking {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .overview-ranking-list {
+    display: grid;
+    flex: 1;
+    grid-auto-rows: minmax(36px, 1fr);
+  }
+
+  .overview-full-ranking[data-component="Button"] {
+    align-self: flex-start;
   }
 }

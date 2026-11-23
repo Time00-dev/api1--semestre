@@ -1,10 +1,15 @@
 import { Button, Dialog, FormControl, Textarea } from '@primer/react';
 import { BookIcon, ChevronRightIcon, PaperAirplaneIcon } from '@primer/octicons-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { month, number, rank, type Row } from './data';
+import { geographic, month, number, rank, type Row } from './data';
 import { url } from './navigation';
 import { MethodLink } from './Controls';
 import { TerritoryLabel } from './TerritoryLabel';
+import { territoryName } from './territorySearch';
+
+type ComparisonValue = { id: string; score?: number; risco?: number; oportunidade?: number };
+type Comparison = { tipo: 'score' | 'grafico'; diferenca?: number; valores: ComparisonValue[] };
+type Answer = { resumo: string; detalhes?: string; comparacao?: Comparison };
 
 const analysisUrl = import.meta.env.VITE_ANALYSIS_URL || (!import.meta.env.VITE_DATA_URL ? 'api/analise' : '');
 const errors: Record<number, string> = {
@@ -16,8 +21,9 @@ export function Assistant({ rows, period, allRows, close }: {
   rows: Row[]; period: string; allRows: Row[]; close: () => void;
 }) {
   const request = useRef<AbortController | null>(null);
+  const answerSection = useRef<HTMLElement>(null);
   const [question, setQuestion] = useState('');
-  const [reply, setReply] = useState('');
+  const [reply, setReply] = useState<Answer>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const length = question.trim().length;
@@ -25,12 +31,15 @@ export function Assistant({ rows, period, allRows, close }: {
   const rankedCount = rank(allRows).length;
 
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => {
+    if (reply) answerSection.current?.scrollIntoView({ block: 'nearest' });
+  }, [reply]);
 
   async function ask(event: FormEvent) {
     event.preventDefault();
     if (!canSend || request.current) return;
     setError('');
-    setReply('');
+    setReply(undefined);
     setPending(true);
     const abort = new AbortController();
     request.current = abort;
@@ -48,7 +57,7 @@ export function Assistant({ rows, period, allRows, close }: {
       if (!response.ok) throw new Error(errors[response.status] || 'Não foi possível gerar a explicação agora. Tente novamente.');
       const result = await response.json();
       if (typeof result.resumo !== 'string' || !result.resumo.trim()) throw new Error('A resposta veio vazia. Tente novamente.');
-      setReply(result.resumo);
+      setReply(result);
     } catch (reason) {
       if (!abort.signal.aborted) setError(reason instanceof TypeError || reason instanceof SyntaxError
         ? 'Não foi possível conectar ao serviço de análise. Tente novamente.'
@@ -90,9 +99,51 @@ export function Assistant({ rows, period, allRows, close }: {
       </form> : <p className="analysis-notice">A análise com IA ainda não foi habilitada nesta publicação.</p>}
       <div aria-live="polite" aria-atomic="true">
         {error && <p className="analysis-notice">{error}</p>}
-        {reply && <section className="analysis-answer"><h3>Explicação gerada por IA</h3><p>{reply}</p></section>}
+        {reply && <section className="analysis-answer" ref={answerSection}>
+          <h3>Resposta</h3>
+          <p>{formatAnswer(reply.resumo, rows)}</p>
+          {reply.comparacao && <AnalysisComparison comparison={reply.comparacao} rows={rows} />}
+          {reply.detalhes && <details className="answer-details">
+            <summary>Ver detalhes</summary><p>{formatAnswer(reply.detalhes, rows)}</p>
+          </details>}
+        </section>}
       </div>
       <a className="text-link" href={url('metodologia', period)} onClick={close}><BookIcon /> Fontes e metodologia</a>
     </div>
   </Dialog>;
+}
+
+function formatAnswer(text: string, rows: Row[]) {
+  return text.replace(/\b[A-Z]{2}-[0-9]{2}\b/g, id => {
+    const row = rows.find(item => item.id === id);
+    if (!row) return id;
+    const name = territoryName(row);
+    return rows.some(item => item.id !== id && territoryName(item) === name)
+      ? name + ' (' + geographic(row) + ')'
+      : name;
+  });
+}
+
+function AnalysisComparison({ comparison, rows }: { comparison: Comparison; rows: Row[] }) {
+  const score = comparison.tipo === 'score';
+  return <div className="answer-comparison">
+    {score && comparison.diferenca != null && <p className="answer-difference">
+      <strong>{number(comparison.diferenca)}</strong> pontos de diferença no score
+    </p>}
+    {score && <p className="answer-rule">
+      Risco menor melhora a capacidade de crédito, que pesa mais no cálculo do score que a oportunidade.
+    </p>}
+    <ul className="answer-values" aria-label={score ? 'Scores comparados' : 'Dados do gráfico comparados'}>
+      {comparison.valores.map(value => {
+        const row = rows.find(item => item.id === value.id);
+        return <li key={value.id}>
+          <span className="answer-place">{row ? territoryName(row) : value.id === 'media' ? 'Média do painel' : value.id}</span>
+          {row && <span className="answer-code">{geographic(row)}</span>}
+          {score && <strong className="answer-score">{number(value.score)}</strong>}
+          {value.risco != null && <span>Risco <b>{number(value.risco)}</b></span>}
+          {value.oportunidade != null && <span>Oportunidade <b>{number(value.oportunidade)}</b></span>}
+        </li>;
+      })}
+    </ul>
+  </div>;
 }

@@ -5,7 +5,7 @@ import { MethodLink } from './Controls';
 import { geographic, mean, number, type Row } from './data';
 import { compareLink, url } from './navigation';
 import { TerritoryLabel } from './TerritoryLabel';
-import { territoryName } from './territorySearch';
+import { territoryName, territoryReference } from './territorySearch';
 import './Overview.css';
 
 const RiskPlot = lazy(() => import('./Charts').then(module => ({ default: module.RiskPlot })));
@@ -22,23 +22,15 @@ export function Overview({ rows, ranking, active, period, select, explain }: {
   const shown = active && !lead.includes(active) ? [...lead.slice(0, 4), active] : lead;
 
   return <>
-    <dl className="overview-metrics">
-      <div><dt>Sub-regiões</dt><dd>{number(rows.length, 0)}</dd></div>
-      <div><dt>UFs</dt><dd>{number(new Set(rows.map(row => row.uf)).size, 0)}</dd></div>
-      <div><dt>Risco médio</dt><dd>{number(baseline.risk)} <small>/ 5</small></dd></div>
-      <div><dt>Oportunidade média</dt><dd>{number(baseline.potential)} <small>/ 5</small></dd></div>
-    </dl>
-
     <div className="overview-board">
       {active && <section className="overview-selection" aria-labelledby="selected-territory">
         <div className="overview-selection-head" aria-live="polite">
-          <div><h2 id="selected-territory">{territoryName(active)}</h2><p>{geographic(active)}</p></div>
+          <div><h2 id="selected-territory" title={territoryReference(active)}>{territoryName(active)}</h2><p>{geographic(active)}</p></div>
           <div className="overview-score">
             <span>Score</span>
             <div><strong>{number(active.score)}</strong>{active.score != null && <small> / 100</small>}</div>
           </div>
         </div>
-        {active.faixa && <p className="overview-band">{active.faixa}</p>}
         <dl className="overview-territory-metrics">
           <div><dt>Posição</dt><dd>{active.ranking == null ? '—' : active.ranking + 'º'}</dd></div>
           <div><dt>Risco</dt><dd>{number(active.risk)}</dd></div>

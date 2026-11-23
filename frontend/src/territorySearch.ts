@@ -9,8 +9,13 @@ export const states: Record<string, string> = {
   SC: 'Santa Catarina', SP: 'São Paulo', SE: 'Sergipe', TO: 'Tocantins',
 };
 
-// Prefixos de localidades consultadas no Anexo 3–SPI dos Correios.
+// Localidades de referência para o prefixo, sem presumir seus limites.
 const cities: Record<string, string[]> = {
+  // IPHAN: https://www.gov.br/iphan/pt-br/acesso-a-informacao/institucional/horario-de-atendimento
+  'BA-40': ['Salvador'],
+  'DF-70': ['Brasília'],
+  // PGFN: https://www.gov.br/pgfn/pt-br/canais_atendimento/atendimento-ao-contribuinte/santa-catarina
+  'SC-88': ['Florianópolis'],
   // Correios: https://saladeimprensa.correios.com.br/arquivos/6993
   'RJ-20': ['Rio de Janeiro'],
   'RJ-21': ['Rio de Janeiro'],
@@ -21,6 +26,10 @@ const cities: Record<string, string[]> = {
   'RJ-26': ['Nova Iguaçu', 'Belford Roxo', 'Nilópolis'],
   // https://www2.correios.com.br/institucional/licit_compras_contratos/licitacoes/anexos/EDI_CP000001_2022_133459.pdf
   'RJ-28': ['Nova Friburgo'],
+  // Prefeitura de São Paulo: https://prefeitura.sp.gov.br/subprefeituras/w/calcadas/37121
+  'SP-04': ['São Paulo · Vila Mariana'],
+  'SP-05': ['São Paulo · Lapa'],
+  // Anexo 3–SPI dos Correios.
   'SP-12': ['São José dos Campos', 'Jacareí', 'Taubaté', 'Campos do Jordão', 'Tremembé'],
   'SP-13': ['Campinas', 'Jundiaí', 'Piracicaba', 'Rio Claro', 'Sumaré', 'São João da Boa Vista'],
   'SP-14': ['Ribeirão Preto', 'Jaboticabal', 'Sertãozinho'],
@@ -64,4 +73,10 @@ export function matchedCity(row: Row, query: string): string | undefined {
 
 export function territoryName(row: Row, query = ''): string {
   return row.nome_sub_regiao?.trim() || matchedCity(row, query) || cities[row.id]?.[0] || states[row.uf] || row.uf;
+}
+
+export function territoryReference(row: Row): string | undefined {
+  if (!row.nome_sub_regiao?.trim() && cities[row.id]) {
+    return 'Localidade de referência para este prefixo postal';
+  }
 }

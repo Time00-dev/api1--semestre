@@ -37,7 +37,7 @@ class TestAnalise(unittest.TestCase):
 
     def test_usa_contexto_do_servidor_e_libera_novas_chamadas_apos_a_janela(self):
         with mock.patch.object(analise, "buscar_base", return_value=BASE), mock.patch.object(
-            analise, "explicacao_openai", return_value=("Score publicado de 83,14.", "modelo-teste", {}),
+            analise, "explicacao_openai", return_value=({"resumo": "Score publicado de 83,14."}, "modelo-teste", {}),
         ) as provedor, mock.patch.object(analise, "time", side_effect=[59.5, 60.1, 60.5, 119.5]):
             dados = {**CONSULTA, "score": 99}
             self.assertEqual(self.post(dados).get_json()["resumo"], "Score publicado de 83,14.")
@@ -78,14 +78,14 @@ class TestAnalise(unittest.TestCase):
             "status": "completed",
             "output": [{"type": "message", "content": [{
                 "type": "output_text",
-                "text": json.dumps({"escopo": "painel", "explicacao": "Resposta de teste."}),
+                "text": json.dumps({"escopo": "painel", "explicacao": "Resposta de teste.", "detalhes": "", "comparacao": "nenhuma"}),
             }]}],
         }
         with mock.patch.dict(os.environ, {"OPENAI_ANALYSIS_MODEL": ""}), mock.patch.object(analise, "urlopen") as abrir:
             abrir.return_value.__enter__.return_value.read.return_value = json.dumps(resultado).encode()
             resposta, modelo, _ = analise.explicacao_openai("chave-de-teste", CONSULTA["pergunta"], {})
         corpo = json.loads(abrir.call_args.args[0].data)
-        self.assertEqual(resposta, "Resposta de teste.")
+        self.assertEqual(resposta, {"resumo": "Resposta de teste."})
         self.assertEqual(modelo, "gpt-6-luna")
         self.assertEqual(corpo["model"], "gpt-6-luna")
         self.assertEqual(corpo["reasoning"], {"effort": "low"})
@@ -114,12 +114,32 @@ class TestAnalise(unittest.TestCase):
     def test_resposta_fora_do_escopo_usa_mensagem_do_servidor(self):
         resultado = {"status": "completed", "output": [{"type": "message", "content": [{
             "type": "output_text",
-            "text": json.dumps({"escopo": "fora_do_escopo", "explicacao": "Receita de bolo."}),
+            "text": json.dumps({"escopo": "fora_do_escopo", "explicacao": "Receita de bolo.", "detalhes": "", "comparacao": "nenhuma"}),
         }]}]}
         with mock.patch.object(analise, "urlopen") as abrir:
             abrir.return_value.__enter__.return_value.read.return_value = json.dumps(resultado).encode()
             resposta, _, _ = analise.explicacao_openai("chave-de-teste", "Como faço um bolo?", {})
-        self.assertEqual(resposta, analise.FORA_DO_ESCOPO)
+        self.assertEqual(resposta, {"resumo": analise.FORA_DO_ESCOPO})
+
+    def test_comparacao_usa_scores_e_notas_da_base(self):
+        contexto = {"resultados": [
+            {"id": "RJ-20", "score": 83.14, "risco_no_grafico": 1.19, "oportunidade_no_grafico": 3.67},
+            {"id": "BA-40", "score": 58.25, "risco_no_grafico": 3.10, "oportunidade_no_grafico": 3.20},
+        ]}
+        scores = analise.destacar_comparacao("score", contexto)
+        grafico = analise.destacar_comparacao("grafico", contexto)
+        self.assertEqual(scores["diferenca"], 24.89)
+        self.assertEqual([item["score"] for item in scores["valores"]], [83.14, 58.25])
+        self.assertEqual([item["risco"] for item in grafico["valores"]], [1.19, 3.10])
+        self.assertIsNone(analise.destacar_comparacao("nenhuma", contexto))
+
+    def test_reutiliza_base_publicada_e_repete_uma_vez_se_a_fonte_demorar(self):
+        resposta = mock.MagicMock()
+        resposta.__enter__.return_value.read.return_value = json.dumps(BASE).encode()
+        with mock.patch.object(analise, "urlopen", side_effect=[TimeoutError(), resposta]) as abrir:
+            for _ in range(2):
+                self.assertEqual(analise.buscar_base_publicada("https://api.example/sub-regioes", MES, 1), BASE)
+        self.assertEqual(abrir.call_count, 2)
 
     def test_credencial_na_pergunta_nao_chega_ao_provedor(self):
         with mock.patch.object(analise, "buscar_base") as consultar, mock.patch.object(analise, "explicacao_openai") as provedor:
