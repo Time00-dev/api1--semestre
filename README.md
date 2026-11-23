@@ -107,8 +107,10 @@ no servidor. Um erro da API de dados aparece explicitamente na interface.
 
 ### Explicações com IA
 
-A rota Flask `POST /api/analise` consulta a competência e os territórios no banco antes de
-enviar à OpenAI somente os registros selecionados e a metodologia. Em prévia com a base
+A rota Flask `POST /api/analise` consulta a competência e os territórios no banco. Envia à
+OpenAI os registros selecionados, a metodologia e uma referência calculada com a base do mês:
+médias, limites dos eixos, mediana do score e até dois pontos próximos por território. Usa
+resposta estruturada para recusar pedidos fora do escopo. Em prévia com a base
 publicada, configure também `ANALYSIS_DATA_URL` no Flask com a mesma URL de dados usada no Vite.
 
 Para testar localmente, configure as variáveis abaixo no arquivo ignorado pelo Git

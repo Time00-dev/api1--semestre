@@ -81,7 +81,10 @@ class TestAnalise(unittest.TestCase):
     def test_luna_e_o_modelo_padrao_com_raciocinio_baixo(self):
         resultado = {
             "status": "completed",
-            "output": [{"type": "message", "content": [{"type": "output_text", "text": "Resposta de teste."}]}],
+            "output": [{"type": "message", "content": [{
+                "type": "output_text",
+                "text": json.dumps({"escopo": "painel", "explicacao": "Resposta de teste."}),
+            }]}],
         }
         with mock.patch.dict(os.environ, {"OPENAI_ANALYSIS_MODEL": ""}), mock.patch.object(analise, "urlopen") as abrir:
             abrir.return_value.__enter__.return_value.read.return_value = json.dumps(resultado).encode()
@@ -92,3 +95,39 @@ class TestAnalise(unittest.TestCase):
         self.assertEqual(corpo["model"], "gpt-6-luna")
         self.assertEqual(corpo["reasoning"], {"effort": "low"})
         self.assertEqual(corpo["max_output_tokens"], 720)
+        self.assertTrue(corpo["text"]["format"]["strict"])
+        self.assertNotIn("tools", corpo)
+
+    def test_referencia_compara_pontos_do_mes_e_exclui_notas_ausentes(self):
+        registro = {"ano_mes": MES, "uf": "SP", "sub_regiao": "05"}
+        base = {
+            "eixo_i": [{**BASE["eixo_i"][0], "inadimplenciaReal": 1},
+                       {**registro, "inadimplenciaReal": 3, "fragilidadeRenda": 5}],
+            "eixo_ii": [*BASE["eixo_ii"], {**registro, "maturidadePix": 4},
+                        {**registro, "sub_regiao": "06", "maturidadePix": 5},
+                        {**registro, "ano_mes": "202609", "maturidadePix": 1}],
+        }
+        contexto = analise.montar_contexto(base, MES, [REGIAO])
+        referencia = contexto["referencia_do_grafico"]
+        self.assertEqual(referencia["sub_regioes_no_grafico"], 2)
+        self.assertEqual(referencia["risco"], {"media": 2, "minimo": 1, "maximo": 3})
+        self.assertEqual(referencia["oportunidade"]["media"], 3.98)
+        self.assertEqual(contexto["resultados"][0]["pontos_proximos"], [
+            {"id": "SP-05", "risco": 3, "oportunidade": 4},
+        ])
+
+    def test_resposta_fora_do_escopo_usa_mensagem_do_servidor(self):
+        resultado = {"status": "completed", "output": [{"type": "message", "content": [{
+            "type": "output_text",
+            "text": json.dumps({"escopo": "fora_do_escopo", "explicacao": "Receita de bolo."}),
+        }]}]}
+        with mock.patch.object(analise, "urlopen") as abrir:
+            abrir.return_value.__enter__.return_value.read.return_value = json.dumps(resultado).encode()
+            resposta, _, _ = analise.explicacao_openai("chave-de-teste", "Como faço um bolo?", {})
+        self.assertEqual(resposta, analise.FORA_DO_ESCOPO)
+
+    def test_credencial_na_pergunta_nao_chega_ao_provedor(self):
+        with mock.patch.object(analise, "buscar_base") as consultar, mock.patch.object(analise, "explicacao_openai") as provedor:
+            self.assertEqual(self.post({**CONSULTA, "pergunta": CODIGO_TESTE}).status_code, 400)
+        consultar.assert_not_called()
+        provedor.assert_not_called()
