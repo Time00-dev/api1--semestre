@@ -2,6 +2,8 @@
 import json
 import os
 import re
+import tempfile
+from pathlib import Path
 import unittest
 from decimal import Decimal
 from unittest import mock
@@ -184,16 +186,21 @@ class Rotas(unittest.TestCase):
         self.assertEqual(consultadas - colunas_do_schema, set())
         self.assertEqual(len(colunas_do_schema), 18)
 
-    def test_raiz_entrega_o_site(self):
-        resposta = self.cliente.get("/")
-        self.assertEqual(resposta.status_code, 200)
-        self.assertIn('src="app.js"', resposta.get_data(as_text=True))
-        resposta.close()
+    def test_raiz_entrega_o_build_e_seus_assets(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            Path(pasta, "index.html").write_text('<script src="./assets/painel.js"></script>', encoding="utf-8")
+            Path(pasta, "assets").mkdir()
+            Path(pasta, "assets", "painel.js").write_text("export {};", encoding="utf-8")
+            with mock.patch.object(api.app, "_static_folder", pasta):
+                with self.cliente.get("/") as resposta:
+                    self.assertEqual(resposta.status_code, 200)
+                    self.assertIn('src="./assets/painel.js"', resposta.get_data(as_text=True))
+                with self.cliente.get("/assets/painel.js") as resposta:
+                    self.assertEqual(resposta.status_code, 200)
 
-    def test_arquivos_do_site_sao_servidos(self):
-        resposta = self.cliente.get("/app.js")
-        self.assertEqual(resposta.status_code, 200)
-        resposta.close()
+    def test_raiz_indica_build_ausente(self):
+        with tempfile.TemporaryDirectory() as pasta, mock.patch.object(api.app, "_static_folder", pasta):
+            self.assertEqual(self.cliente.get("/").status_code, 503)
 
 
 class RotaCarga(unittest.TestCase):
@@ -261,4 +268,3 @@ class RotaCarga(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
